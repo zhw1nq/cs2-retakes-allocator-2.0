@@ -41,6 +41,7 @@ public static class Configs
             ["SSG"] = layout => layout.SSG!,
             ["EnemyStuff"] = layout => layout.EnemyStuff!,
             ["Zeus"] = layout => layout.Zeus!,
+            ["Warmup"] = layout => layout.Warmup!,
             ["Database"] = layout => layout.Database!,
         };
 
@@ -230,6 +231,8 @@ public record RoundTypeManualOrderingItem(RoundType Type, int Count);
 public record ConfigData
 {
     public List<CsItem> UsableWeapons { get; set; } = WeaponHelpers.AllWeapons;
+    public bool EnableWeaponShotguns { get; set; } = false;
+    public bool EnableWeaponPms { get; set; } = false;
 
     public List<WeaponSelectionType> AllowedWeaponSelectionTypes { get; set; } =
         Enum.GetValues<WeaponSelectionType>().ToList();
@@ -338,6 +341,9 @@ public record ConfigData
     public float BombSiteAnnouncementCenterDelay { get; set; } = 1.0f;
     public float BombSiteAnnouncementCenterShowTimer { get; set; } = 5.0f;
     public bool EnableBombSiteAnnouncementChat { get; set; } = false;
+    public bool CustomWarmup { get; set; } = false;
+    public CsItem CustomWarmupWeaponCT { get; set; } = CsItem.M4A4;
+    public CsItem CustomWarmupWeaponT { get; set; } = CsItem.AK47;
     public bool EnableNextRoundTypeVoting { get; set; } = false;
     public bool EnableAllWeaponsForEveryone { get; set; } = false;
     public int EnableZeus { get; set; } = 0;
@@ -435,6 +441,16 @@ public record ConfigData
         if (ChanceForZeusWeapon is < 0 or > 100)
         {
             throw new Exception("'ChanceForZeusWeapon' must be between 0 and 100");
+        }
+
+        if (!WeaponHelpers.IsWeapon(CustomWarmupWeaponCT))
+        {
+            throw new Exception("'CustomWarmupWeaponCT' must be a valid weapon");
+        }
+
+        if (!WeaponHelpers.IsWeapon(CustomWarmupWeaponT))
+        {
+            throw new Exception("'CustomWarmupWeaponT' must be a valid weapon");
         }
 
         if (EnableAwp is < 0 or > 2)
@@ -554,6 +570,7 @@ public record ConfigFileLayout
     public SsgCategory? SSG { get; set; }
     public EnemyStuffCategory? EnemyStuff { get; set; }
     public ZeusCategory? Zeus { get; set; }
+    public WarmupCategory? Warmup { get; set; }
     public DatabaseCategory? Database { get; set; }
 
     public static ConfigFileLayout FromConfigData(ConfigData data) => new()
@@ -581,6 +598,12 @@ public record ConfigFileLayout
             InGameGunMenuCenterCommands = data.InGameGunMenuCenterCommands,
             AutoUpdateSignatures = data.AutoUpdateSignatures,
         },
+        Warmup = new WarmupCategory
+        {
+            CustomWarmup = data.CustomWarmup,
+            CustomWarmupWeaponCT = data.CustomWarmupWeaponCT,
+            CustomWarmupWeaponT = data.CustomWarmupWeaponT,
+        },
         RoundTypes = new RoundTypesCategory
         {
             RoundTypeSelection = data.RoundTypeSelection,
@@ -594,6 +617,8 @@ public record ConfigFileLayout
             AllowedWeaponSelectionTypes = data.AllowedWeaponSelectionTypes,
             DefaultWeapons = data.DefaultWeapons,
             EnableAllWeaponsForEveryone = data.EnableAllWeaponsForEveryone,
+            EnableWeaponShotguns = data.EnableWeaponShotguns,
+            EnableWeaponPms = data.EnableWeaponPms,
         },
         Nades = new NadesCategory
         {
@@ -695,6 +720,18 @@ public record ConfigFileLayout
             {
                 data.EnableBombSiteAnnouncementChat = enableBombSiteAnnouncementChat;
             }
+            if (Config.CustomWarmup is bool customWarmup)
+            {
+                data.CustomWarmup = customWarmup;
+            }
+            if (Config.CustomWarmupWeaponCT is CsItem customWarmupWeaponCt)
+            {
+                data.CustomWarmupWeaponCT = customWarmupWeaponCt;
+            }
+            if (Config.CustomWarmupWeaponT is CsItem customWarmupWeaponT)
+            {
+                data.CustomWarmupWeaponT = customWarmupWeaponT;
+            }
             if (Config.EnableNextRoundTypeVoting is bool enableNextRoundTypeVoting)
             {
                 data.EnableNextRoundTypeVoting = enableNextRoundTypeVoting;
@@ -763,6 +800,14 @@ public record ConfigFileLayout
             {
                 data.EnableAllWeaponsForEveryone = enableAllWeaponsForEveryone;
             }
+            if (Weapons.EnableWeaponShotguns is bool enableWeaponShotguns)
+            {
+                data.EnableWeaponShotguns = enableWeaponShotguns;
+            }
+            if (Weapons.EnableWeaponPms is bool enableWeaponPms)
+            {
+                data.EnableWeaponPms = enableWeaponPms;
+            }
         }
 
         if (Nades is not null)
@@ -774,6 +819,39 @@ public record ConfigFileLayout
             if (Nades.MaxTeamNades is not null)
             {
                 data.MaxTeamNades = Nades.MaxTeamNades;
+            }
+        }
+
+        if (Warmup is not null)
+        {
+            if (Warmup.CustomWarmup is bool customWarmup)
+            {
+                data.CustomWarmup = customWarmup;
+            }
+            if (Warmup.CustomWarmupWeaponCT is CsItem customWarmupWeaponCt)
+            {
+                data.CustomWarmupWeaponCT = customWarmupWeaponCt;
+            }
+            if (Warmup.CustomWarmupWeaponT is CsItem customWarmupWeaponT)
+            {
+                data.CustomWarmupWeaponT = customWarmupWeaponT;
+            }
+        }
+
+        // Backwards compatibility: legacy warmup fields under Config
+        if (Config is not null)
+        {
+            if (Config.CustomWarmup is bool legacyCustomWarmup)
+            {
+                data.CustomWarmup = legacyCustomWarmup;
+            }
+            if (Config.CustomWarmupWeaponCT is CsItem legacyWarmupWeaponCt)
+            {
+                data.CustomWarmupWeaponCT = legacyWarmupWeaponCt;
+            }
+            if (Config.CustomWarmupWeaponT is CsItem legacyWarmupWeaponT)
+            {
+                data.CustomWarmupWeaponT = legacyWarmupWeaponT;
             }
         }
 
@@ -942,6 +1020,12 @@ public record ConfigCategory
     public float? BombSiteAnnouncementCenterDelay { get; set; }
     public float? BombSiteAnnouncementCenterShowTimer { get; set; }
     public bool? EnableBombSiteAnnouncementChat { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CustomWarmup { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CsItem? CustomWarmupWeaponCT { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CsItem? CustomWarmupWeaponT { get; set; }
     public bool? EnableNextRoundTypeVoting { get; set; }
     public bool? EnableCanAcquireHook { get; set; }
     public LogLevel? LogLevel { get; set; }
@@ -949,6 +1033,13 @@ public record ConfigCategory
     public string? ChatMessagePluginPrefix { get; set; }
     public string? InGameGunMenuCenterCommands { get; set; }
     public bool? AutoUpdateSignatures { get; set; }
+}
+
+public record WarmupCategory
+{
+    public bool? CustomWarmup { get; set; }
+    public CsItem? CustomWarmupWeaponCT { get; set; }
+    public CsItem? CustomWarmupWeaponT { get; set; }
 }
 
 public record RoundTypesCategory
@@ -965,6 +1056,8 @@ public record WeaponsCategory
     public List<WeaponSelectionType>? AllowedWeaponSelectionTypes { get; set; }
     public Dictionary<CsTeam, Dictionary<WeaponAllocationType, CsItem>>? DefaultWeapons { get; set; }
     public bool? EnableAllWeaponsForEveryone { get; set; }
+    public bool? EnableWeaponShotguns { get; set; }
+    public bool? EnableWeaponPms { get; set; }
 }
 
 public record NadesCategory

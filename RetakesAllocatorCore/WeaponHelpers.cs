@@ -110,6 +110,20 @@ public static class WeaponHelpers
     private static readonly ICollection<CsItem> _smgsForCt =
         _sharedMidRange.Concat(_ctMidRange).Where(i => (int)i <= _maxSmgItemValue).ToHashSet();
 
+    private static readonly ICollection<CsItem> _shotgunsShared = new HashSet<CsItem>
+    {
+        CsItem.XM1014,
+        CsItem.Nova,
+    };
+
+    private static readonly ICollection<CsItem> _shotgunsForT = _shotgunsShared
+        .Concat(new[] {CsItem.SawedOff})
+        .ToHashSet();
+
+    private static readonly ICollection<CsItem> _shotgunsForCt = _shotgunsShared
+        .Concat(new[] {CsItem.MAG7})
+        .ToHashSet();
+
     private static readonly ICollection<CsItem> _tRifles = new HashSet<CsItem>
     {
         CsItem.AK47,
@@ -289,6 +303,20 @@ public static class WeaponHelpers
 
         var availableWeapons = new HashSet<CsItem>(_validWeaponsByTeamAndAllocationType[team][allocationType]);
 
+        if (allocationType == WeaponAllocationType.FullBuyPrimary && Configs.IsLoaded())
+        {
+            var config = Configs.GetConfigData();
+            if (config.EnableWeaponShotguns)
+            {
+                availableWeapons.UnionWith(GetShotgunsForTeam(team));
+            }
+
+            if (config.EnableWeaponPms)
+            {
+                availableWeapons.UnionWith(GetSmgsForTeam(team));
+            }
+        }
+
         var allowAllWeapons = Configs.IsLoaded() && Configs.GetConfigData().EnableAllWeaponsForEveryone;
         if (!allowAllWeapons || allocationType == WeaponAllocationType.Preferred)
         {
@@ -301,6 +329,20 @@ public static class WeaponHelpers
             otherAllocations.TryGetValue(allocationType, out var otherWeapons))
         {
             availableWeapons.UnionWith(otherWeapons);
+        }
+
+        if (allocationType == WeaponAllocationType.FullBuyPrimary && Configs.IsLoaded())
+        {
+            var config = Configs.GetConfigData();
+            if (config.EnableWeaponShotguns)
+            {
+                availableWeapons.UnionWith(GetShotgunsForTeam(otherTeam));
+            }
+
+            if (config.EnableWeaponPms)
+            {
+                availableWeapons.UnionWith(GetSmgsForTeam(otherTeam));
+            }
         }
 
         return availableWeapons;
@@ -414,6 +456,26 @@ public static class WeaponHelpers
     public static bool IsSsgPreference(CsItem weapon)
     {
         return _ssgPreferredWeapons.Contains(weapon) || IsRandomSniperPreference(weapon);
+    }
+
+    private static ICollection<CsItem> GetShotgunsForTeam(CsTeam team)
+    {
+        return team switch
+        {
+            CsTeam.Terrorist => _shotgunsForT,
+            CsTeam.CounterTerrorist => _shotgunsForCt,
+            _ => Array.Empty<CsItem>(),
+        };
+    }
+
+    private static ICollection<CsItem> GetSmgsForTeam(CsTeam team)
+    {
+        return team switch
+        {
+            CsTeam.Terrorist => _smgsForT,
+            CsTeam.CounterTerrorist => _smgsForCt,
+            _ => Array.Empty<CsItem>(),
+        };
     }
 
     public static IList<T> SelectPreferredPlayers<T>(IEnumerable<T> players, Func<T, bool> hasPermission, CsTeam team)
