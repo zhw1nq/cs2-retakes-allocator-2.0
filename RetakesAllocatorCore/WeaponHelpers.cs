@@ -534,11 +534,6 @@ public static class WeaponHelpers
 
         var playersList = players.ToList();
 
-        if (settings.AllowEveryone)
-        {
-            return new List<T>(playersList);
-        }
-
         if (minPlayersPerTeam.TryGetValue(team, out var minTeamPlayers))
         {
             if (playersList.Count < minTeamPlayers)

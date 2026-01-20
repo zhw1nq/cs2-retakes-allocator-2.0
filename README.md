@@ -104,7 +104,6 @@ that related options stay together:
 - `AWP` / `SSG`: Everything related to the sniper queues, including VIP chance boosts and team limits.
 - `EnemyStuff`: Controls for the enemy-weapon preference feature.
 - `Zeus`: The Zeus preference toggle, chance, and max-per-team limits.
-- `Warmup`: Settings related to custom warmup behavior and weapons.
 - `Nades`: Map/team-specific nade caps.
 - `Database`: Provider, connection string, and migration behavior.
 
@@ -334,11 +333,6 @@ If you mix up `Incendiary` and `Molotov`, the plugin will fix it for you.
 
 *NOTE: There is a bug right now where the plugin will not always give the maximum number of nades, even if players have
 room for it*.
-
-#### Warmup Configuration
-
-- `Warmup.CustomWarmup`: When `true`, enables a warmup-only loadout mode that strips weapons and gives everyone the configured team-specific warmup weapon.
-- `Warmup.CustomWarmupWeaponCT` / `Warmup.CustomWarmupWeaponT`: The weapons Counter-Terrorists and Terrorists receive during warmup when `CustomWarmup` is enabled. Defaults are `M4A4` for CT and `AK47` for T.
 
 #### Other Configuration
 
