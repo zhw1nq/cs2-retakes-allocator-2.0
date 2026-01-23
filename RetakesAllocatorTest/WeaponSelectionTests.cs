@@ -276,6 +276,142 @@ public class WeaponSelectionTests : BaseTestFixture
     }
 
     [Test]
+    public async Task AwpRespectsLimitWhenEveryoneCanQueue()
+    {
+        var config = new ConfigData
+        {
+            EnableAwp = 1,
+            ChanceForAwpWeapon = 100,
+            ChanceForSsgWeapon = 0,
+            MaxAwpWeaponsPerTeam = new()
+            {
+                {CsTeam.Terrorist, 1},
+                {CsTeam.CounterTerrorist, 1},
+            },
+        };
+
+        Configs.OverrideConfigDataForTests(config);
+        RoundTypeManager.Instance.Initialize();
+        RoundTypeManager.Instance.SetNextRoundTypeOverride(RoundType.FullBuy);
+
+        var players = new List<int> {1, 2, 3, 4};
+        foreach (var player in players)
+        {
+            var team = player <= 2 ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+            await Queries.SetWeaponPreferenceForUserAsync(
+                (ulong)player,
+                team,
+                WeaponAllocationType.Preferred,
+                CsItem.AWP
+            );
+        }
+
+        try
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                var allocations = new Dictionary<int, List<CsItem>>();
+                OnRoundPostStartHelper.Handle(
+                    players,
+                    p => (ulong)p,
+                    p => p <= 2 ? CsTeam.Terrorist : CsTeam.CounterTerrorist,
+                    _ => { },
+                    (player, items, _) => { allocations[player] = new(items); },
+                    _ => true,
+                    _ => true,
+                    _ => false,
+                    out var roundType
+                );
+
+                Assert.That(roundType, Is.EqualTo(RoundType.FullBuy));
+
+                int CountTeamAwps(Func<int, bool> isTeamPlayer) =>
+                    allocations
+                        .Where(kvp => isTeamPlayer(kvp.Key))
+                        .SelectMany(kvp => kvp.Value)
+                        .Count(item => item is CsItem.AWP or CsItem.AutoSniperT or CsItem.AutoSniperCT);
+
+                Assert.LessOrEqual(CountTeamAwps(player => player <= 2),
+                    config.MaxAwpWeaponsPerTeam[CsTeam.Terrorist]);
+                Assert.LessOrEqual(CountTeamAwps(player => player > 2),
+                    config.MaxAwpWeaponsPerTeam[CsTeam.CounterTerrorist]);
+            }
+        }
+        finally
+        {
+            RoundTypeManager.Instance.SetNextRoundTypeOverride(null);
+        }
+    }
+
+    [Test]
+    public async Task SsgRespectsLimitWhenEveryoneCanQueue()
+    {
+        var config = new ConfigData
+        {
+            EnableSsg = 1,
+            ChanceForAwpWeapon = 0,
+            ChanceForSsgWeapon = 100,
+            MaxSsgWeaponsPerTeam = new()
+            {
+                {CsTeam.Terrorist, 1},
+                {CsTeam.CounterTerrorist, 1},
+            },
+        };
+
+        Configs.OverrideConfigDataForTests(config);
+        RoundTypeManager.Instance.Initialize();
+        RoundTypeManager.Instance.SetNextRoundTypeOverride(RoundType.FullBuy);
+
+        var players = new List<int> {1, 2, 3, 4};
+        foreach (var player in players)
+        {
+            var team = player <= 2 ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+            await Queries.SetWeaponPreferenceForUserAsync(
+                (ulong)player,
+                team,
+                WeaponAllocationType.Preferred,
+                CsItem.Scout
+            );
+        }
+
+        try
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                var allocations = new Dictionary<int, List<CsItem>>();
+                OnRoundPostStartHelper.Handle(
+                    players,
+                    p => (ulong)p,
+                    p => p <= 2 ? CsTeam.Terrorist : CsTeam.CounterTerrorist,
+                    _ => { },
+                    (player, items, _) => { allocations[player] = new(items); },
+                    _ => true,
+                    _ => true,
+                    _ => false,
+                    out var roundType
+                );
+
+                Assert.That(roundType, Is.EqualTo(RoundType.FullBuy));
+
+                int CountTeamSsgs(Func<int, bool> isTeamPlayer) =>
+                    allocations
+                        .Where(kvp => isTeamPlayer(kvp.Key))
+                        .SelectMany(kvp => kvp.Value)
+                        .Count(item => item == CsItem.Scout);
+
+                Assert.LessOrEqual(CountTeamSsgs(player => player <= 2),
+                    config.MaxSsgWeaponsPerTeam[CsTeam.Terrorist]);
+                Assert.LessOrEqual(CountTeamSsgs(player => player > 2),
+                    config.MaxSsgWeaponsPerTeam[CsTeam.CounterTerrorist]);
+            }
+        }
+        finally
+        {
+            RoundTypeManager.Instance.SetNextRoundTypeOverride(null);
+        }
+    }
+
+    [Test]
     public async Task RandomSniperPreferenceRespectsTeamLimits()
     {
         var config = new ConfigData

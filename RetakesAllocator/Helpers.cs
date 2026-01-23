@@ -114,7 +114,9 @@ public static class Helpers
 
     public static bool RemoveWeapons(CCSPlayerController player, Func<CsItem, bool>? where = null)
     {
-        if (!PlayerIsValid(player) || player.PlayerPawn.Value?.WeaponServices is null)
+        if (!PlayerIsValid(player) ||
+            !player.PawnIsAlive ||
+            player.PlayerPawn.Value?.WeaponServices is null)
         {
             return false;
         }

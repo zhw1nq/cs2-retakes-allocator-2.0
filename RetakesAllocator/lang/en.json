@@ -32,7 +32,6 @@
   "weapon_preference.awp_disabled": "This server has disabled AWP preferences.",
   "weapon_preference.ssg_disabled": "This server has disabled SSG preferences.",
   "weapon_preference.enemy_disabled": "This server has disabled enemy weapon preferences.",
-  "warmup.buy_disabled": "Buy menu is disabled during warmup.",
   "menu.timeout": "You did not interact with the menu in {0} seconds!",
   "menu.exit": "Exit",
   "menu.already_in_menu": "You are already using another menu!",
