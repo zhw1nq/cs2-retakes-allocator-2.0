@@ -331,6 +331,7 @@ public record ConfigData
     public bool AllowAllocationAfterFreezeTime { get; set; } = true;
     public bool UseOnTickFeatures { get; set; } = true;
     public bool CapabilityWeaponPaints { get; set; } = true;
+    public bool GunCommandsEnabled { get; set; } = true;
     public bool EnableRoundTypeAnnouncement { get; set; } = true;
     public bool EnableRoundTypeAnnouncementCenter { get; set; } = false;
     public bool EnableBombSiteAnnouncementCenter { get; set; } = false;
@@ -566,6 +567,7 @@ public record ConfigFileLayout
             AllowAllocationAfterFreezeTime = data.AllowAllocationAfterFreezeTime,
             UseOnTickFeatures = data.UseOnTickFeatures,
             CapabilityWeaponPaints = data.CapabilityWeaponPaints,
+            GunCommandsEnabled = data.GunCommandsEnabled,
             EnableRoundTypeAnnouncement = data.EnableRoundTypeAnnouncement,
             EnableRoundTypeAnnouncementCenter = data.EnableRoundTypeAnnouncementCenter,
             EnableBombSiteAnnouncementCenter = data.EnableBombSiteAnnouncementCenter,
@@ -662,6 +664,10 @@ public record ConfigFileLayout
             if (Config.CapabilityWeaponPaints is bool capabilityWeaponPaints)
             {
                 data.CapabilityWeaponPaints = capabilityWeaponPaints;
+            }
+            if (Config.GunCommandsEnabled is bool gunCommandsEnabled)
+            {
+                data.GunCommandsEnabled = gunCommandsEnabled;
             }
             if (Config.EnableRoundTypeAnnouncement is bool enableRoundTypeAnnouncement)
             {
@@ -945,6 +951,7 @@ public record ConfigCategory
     public bool? AllowAllocationAfterFreezeTime { get; set; }
     public bool? UseOnTickFeatures { get; set; }
     public bool? CapabilityWeaponPaints { get; set; }
+    public bool? GunCommandsEnabled { get; set; }
     public bool? EnableRoundTypeAnnouncement { get; set; }
     public bool? EnableRoundTypeAnnouncementCenter { get; set; }
     public bool? EnableBombSiteAnnouncementCenter { get; set; }

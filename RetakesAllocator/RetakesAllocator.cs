@@ -65,27 +65,32 @@ public class RetakesAllocator : BasePlugin
             RoundTypeManager.Instance.SetMap(mapName);
         });
 
-        _ = Task.Run(async () =>
+        var useCustomGameData =
+            Configs.GetConfigData().EnableCanAcquireHook || Configs.GetConfigData().CapabilityWeaponPaints;
+
+        if (useCustomGameData)
         {
-            var downloadedNewGameData = await Helpers.DownloadMissingFiles();
-            if (!downloadedNewGameData)
+            _ = Task.Run(async () =>
             {
-                return;
-            }
-
-            Server.NextFrame(() =>
-            {
-                CustomFunctions ??= new();
-                // Must unhook the old functions before reloading and rehooking
-                CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Unhook(OnWeaponCanAcquire, HookMode.Pre);
-                CustomFunctions.LoadCustomGameData();
-                if (Configs.GetConfigData().EnableCanAcquireHook)
+                var downloadedNewGameData = await Helpers.DownloadMissingFiles();
+                if (!downloadedNewGameData)
                 {
-                    CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Hook(OnWeaponCanAcquire, HookMode.Pre);
+                    return;
                 }
-            });
 
-        });
+                Server.NextFrame(() =>
+                {
+                    CustomFunctions ??= new();
+                    // Must unhook the old functions before reloading and rehooking
+                    CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Unhook(OnWeaponCanAcquire, HookMode.Pre);
+                    CustomFunctions.LoadCustomGameData();
+                    if (Configs.GetConfigData().EnableCanAcquireHook)
+                    {
+                        CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Hook(OnWeaponCanAcquire, HookMode.Pre);
+                    }
+                });
+            });
+        }
 
         if (Configs.GetConfigData().UseOnTickFeatures)
         {
@@ -99,11 +104,14 @@ public class RetakesAllocator : BasePlugin
             Queries.Migrate();
         }
 
-        CustomFunctions = new();
-
-        if (Configs.GetConfigData().EnableCanAcquireHook)
+        if (useCustomGameData)
         {
-            CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Hook(OnWeaponCanAcquire, HookMode.Pre);
+            CustomFunctions = new();
+
+            if (Configs.GetConfigData().EnableCanAcquireHook)
+            {
+                CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Hook(OnWeaponCanAcquire, HookMode.Pre);
+            }
         }
 
         if (hotReload)
@@ -148,6 +156,12 @@ public class RetakesAllocator : BasePlugin
         if (Configs.GetConfigData().EnableCanAcquireHook && CustomFunctions != null)
         {
             CustomFunctions.CCSPlayer_ItemServices_CanAcquireFunc?.Unhook(OnWeaponCanAcquire, HookMode.Pre);
+        }
+
+        if (CustomFunctions != null)
+        {
+            // Clear references to custom game data to avoid native calls after unload
+            CustomFunctions = null;
         }
     }
 
@@ -206,6 +220,11 @@ public class RetakesAllocator : BasePlugin
     [CommandHelper(usage: "<gun> [T|CT]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
     public void OnWeaponCommand(CCSPlayerController? player, CommandInfo commandInfo)
     {
+        if (!Configs.GetConfigData().GunCommandsEnabled)
+        {
+            commandInfo.ReplyToCommand($"{MessagePrefix}Gun command is currently disabled by server config.");
+            return;
+        }
         HandleWeaponCommand(player, commandInfo);
     }
 
@@ -229,27 +248,7 @@ public class RetakesAllocator : BasePlugin
         );
         Helpers.WriteNewlineDelimited(result, commandInfo.ReplyToCommand);
 
-        if (Helpers.IsWeaponAllocationAllowed() && selectedWeapon is not null)
-        {
-            var selectedWeaponAllocationType =
-                WeaponHelpers.GetWeaponAllocationTypeForWeaponAndRound(RoundTypeManager.Instance.GetCurrentRoundType(),
-                    currentTeam,
-                    selectedWeapon.Value);
-            if (selectedWeaponAllocationType is not null)
-            {
-                Helpers.RemoveWeapons(
-                    player,
-                    item =>
-                        WeaponHelpers.GetWeaponAllocationTypeForWeaponAndRound(
-                            RoundTypeManager.Instance.GetCurrentRoundType(), currentTeam, item) ==
-                        selectedWeaponAllocationType
-                );
-
-                var slotType = WeaponHelpers.GetSlotTypeForItem(selectedWeapon.Value);
-                var slot = WeaponHelpers.GetSlotNameForSlotType(slotType);
-                AllocateItemsForPlayer(player, new List<CsItem> {selectedWeapon.Value}, slot);
-            }
-        }
+        // Preferences now only affect the next allocation; no weapon swap during the current round
     }
 
     [ConsoleCommand("css_awp", "Join or leave the AWP queue.")]
@@ -392,6 +391,11 @@ public class RetakesAllocator : BasePlugin
     [CommandHelper(minArgs: 1, usage: "<gun> [T|CT]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
     public void OnRemoveWeaponCommand(CCSPlayerController? player, CommandInfo commandInfo)
     {
+        if (!Configs.GetConfigData().GunCommandsEnabled)
+        {
+            commandInfo.ReplyToCommand($"{MessagePrefix}Gun command is currently disabled by server config.");
+            return;
+        }
         if (!Helpers.PlayerIsValid(player))
         {
             return;
@@ -1103,7 +1107,7 @@ public class RetakesAllocator : BasePlugin
 
         AddTimer(0.1f, () =>
         {
-            if (!Helpers.PlayerIsValid(player))
+            if (!Helpers.PlayerIsValid(player) || !player.PawnIsAlive || player.PlayerPawn is null || !player.PlayerPawn.IsValid || player.PlayerPawn.Value is null)
             {
                 Log.Trace("Player is not valid when allocating item");
                 return;
@@ -1137,7 +1141,7 @@ public class RetakesAllocator : BasePlugin
             {
                 AddTimer(0.1f, () =>
                 {
-                    if (Helpers.PlayerIsValid(player) && player.UserId is not null)
+                    if (Helpers.PlayerIsValid(player) && player.PawnIsAlive && player.UserId is not null)
                     {
                         NativeAPI.IssueClientCommand((int) player.UserId, slotToSelect);
                     }
