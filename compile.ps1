@@ -44,17 +44,6 @@ if (Test-Path $cssApi) {
     Remove-Item $cssApi -Force
 }
 
-# Zip the staged plugin for convenience
-$zipPath = Join-Path $compiledRoot "$pluginName.zip"
-if (Test-Path $zipPath) {
-    Remove-Item $zipPath -Force
-}
-Compress-Archive -Path (Join-Path $pluginTarget '*') -DestinationPath $zipPath
-
-Write-Host "[OK] Build finished."
-Write-Host " - Folder: $pluginTarget"
-Write-Host " - Zip:    $zipPath"
-
 # Copy KitsuneMenu shared DLL if available
 $kitsuneSource = $null
 if (Test-Path $kitsuneSharedSource) {
@@ -74,3 +63,15 @@ if ($kitsuneSource) {
 } else {
     Write-Warning "KitsuneMenu.dll not found (checked shared and local build paths)."
 }
+
+# Zip the staged plugin + shared folder for convenience
+$zipPath = Join-Path $compiledRoot "$pluginName.zip"
+if (Test-Path $zipPath) {
+    Remove-Item $zipPath -Force
+}
+Compress-Archive -Path (Join-Path $compiledRoot 'counterstrikesharp/*') -DestinationPath $zipPath
+
+Write-Host "[OK] Build finished."
+Write-Host " - Folder: $pluginTarget"
+Write-Host " - Shared: $sharedTarget"
+Write-Host " - Zip:    $zipPath"
