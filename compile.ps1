@@ -10,10 +10,14 @@ $buildOutput = Join-Path $root 'RetakesAllocator/bin/Release/net8.0'
 $compiledRoot = Join-Path $root 'compiled'
 $pluginName = 'RetakesAllocator'
 $pluginTarget = Join-Path $compiledRoot "counterstrikesharp/plugins/$pluginName"
+$sharedTarget = Join-Path $compiledRoot "counterstrikesharp/shared/KitsuneMenu"
+$kitsuneSharedSource = Join-Path $root 'RetakesAllocator/game/csgo/addons/counterstrikesharp/shared/KitsuneMenu/KitsuneMenu.dll'
+$kitsuneLocalBuild = Join-Path $root 'RetakesAllocator/KitsuneMenu/src/bin/Release/net8.0/KitsuneMenu.dll'
 
 # Clean staging directory
 Remove-Item -Recurse -Force $compiledRoot -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $pluginTarget -Force | Out-Null
+New-Item -ItemType Directory -Path $sharedTarget -Force | Out-Null
 
 dotnet restore $solution
 dotnet build $solution -c Release --no-restore --nologo
@@ -40,13 +44,34 @@ if (Test-Path $cssApi) {
     Remove-Item $cssApi -Force
 }
 
-# Zip the staged plugin for convenience
+# Copy KitsuneMenu shared DLL if available
+$kitsuneSource = $null
+if (Test-Path $kitsuneSharedSource) {
+    $kitsuneSource = $kitsuneSharedSource
+} elseif (Test-Path $kitsuneLocalBuild) {
+    $kitsuneSource = $kitsuneLocalBuild
+}
+
+if ($kitsuneSource) {
+    try {
+        Copy-Item -Force $kitsuneSource $sharedTarget
+        Write-Host " - KitsuneMenu copied to: $sharedTarget"
+    }
+    catch {
+        Write-Warning "Failed to copy KitsuneMenu.dll: $($_.Exception.Message)"
+    }
+} else {
+    Write-Warning "KitsuneMenu.dll not found (checked shared and local build paths)."
+}
+
+# Zip the staged plugin + shared folder for convenience
 $zipPath = Join-Path $compiledRoot "$pluginName.zip"
 if (Test-Path $zipPath) {
     Remove-Item $zipPath -Force
 }
-Compress-Archive -Path (Join-Path $pluginTarget '*') -DestinationPath $zipPath
+Compress-Archive -Path (Join-Path $compiledRoot 'counterstrikesharp/*') -DestinationPath $zipPath
 
 Write-Host "[OK] Build finished."
 Write-Host " - Folder: $pluginTarget"
+Write-Host " - Shared: $sharedTarget"
 Write-Host " - Zip:    $zipPath"
