@@ -93,6 +93,323 @@ Minimal categorized example:
 }
 ```
 
+Full configuration example (current Absynthium server):
+```json
+{
+  "Config": {
+    "ResetStateOnGameRestart": true,
+    "AllowAllocationAfterFreezeTime": true,
+    "UseOnTickFeatures": true,
+    "CapabilityWeaponPaints": true,
+    "GunCommandsEnabled": true,
+    "EnableRoundTypeAnnouncement": true,
+    "EnableRoundTypeAnnouncementCenter": false,
+    "EnableBombSiteAnnouncementCenter": false,
+    "BombSiteAnnouncementCenterToCTOnly": false,
+    "DisableDefaultBombPlantedCenterMessage": false,
+    "ForceCloseBombSiteAnnouncementCenterOnPlant": true,
+    "BombSiteAnnouncementCenterDelay": 1,
+    "BombSiteAnnouncementCenterShowTimer": 5,
+    "EnableBombSiteAnnouncementChat": false,
+    "EnableNextRoundTypeVoting": false,
+    "EnableCanAcquireHook": true,
+    "LogLevel": "Information",
+    "ChatMessagePluginName": "Absynthium - Retakes",
+    "ChatMessagePluginPrefix": "[GREEN][Absynthium - Retakes][WHITE] ",
+    "InGameGunMenuCenterCommands": "guns,!guns,/guns,gun,!gun,!gun",
+    "AutoUpdateSignatures": true
+  },
+  "RoundTypes": {
+    "RoundTypeSelection": "ManualOrdering",
+    "RoundTypePercentages": {
+      "Pistol": 15,
+      "HalfBuy": 25,
+      "FullBuy": 60
+    },
+    "RoundTypeRandomFixedCounts": {
+      "Pistol": 5,
+      "HalfBuy": 10,
+      "FullBuy": 15
+    },
+    "RoundTypeManualOrdering": [
+      {
+        "Type": "Pistol",
+        "Count": 5
+      },
+      {
+        "Type": "HalfBuy",
+        "Count": 0
+      },
+      {
+        "Type": "FullBuy",
+        "Count": 200
+      }
+    ]
+  },
+  "Weapons": {
+    "UsableWeapons": [
+      "Deagle",
+      "Glock",
+      "USPS",
+      "HKP2000",
+      "Elite",
+      "Tec9",
+      "P250",
+      "CZ",
+      "FiveSeven",
+      "Revolver",
+      "Mac10",
+      "MP9",
+      "MP7",
+      "P90",
+      "MP5SD",
+      "Bizon",
+      "UMP45",
+      "XM1014",
+      "Nova",
+      "MAG7",
+      "SawedOff",
+      "AK47",
+      "M4A1S",
+      "M4A1",
+      "GalilAR",
+      "Famas",
+      "SG556",
+      "AWP",
+      "AUG",
+      "SSG08"
+    ],
+    "AllowedWeaponSelectionTypes": [
+      "PlayerChoice",
+      "Default"
+    ],
+    "DefaultWeapons": {
+      "Terrorist": {
+        "FullBuyPrimary": "AK47",
+        "HalfBuyPrimary": "Mac10",
+        "Secondary": "Deagle",
+        "PistolRound": "Glock"
+      },
+      "CounterTerrorist": {
+        "FullBuyPrimary": "M4A1S",
+        "HalfBuyPrimary": "MP9",
+        "Secondary": "Deagle",
+        "PistolRound": "USPS"
+      }
+    },
+    "EnableAllWeaponsForEveryone": false,
+    "EnableWeaponShotguns": true,
+    "EnableWeaponPms": true
+  },
+  "Nades": {
+    "MaxNades": {
+      "de_dust2": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 2
+        }
+      },
+      "de_mirage": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 2
+        }
+      },
+      "de_inferno": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 0,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 2
+        }
+      },
+      "de_overpass": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 1
+        }
+      },
+      "de_nuke": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 2
+        }
+      },
+      "de_vertigo": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 2
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 2
+        }
+      },
+      "de_ancient": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 1
+        }
+      },
+      "de_ancient_night": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 1
+        }
+      },
+      "de_anubis": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 1
+        }
+      },
+      "de_train": {
+        "Terrorist": {
+          "Flashbang": 1,
+          "Smoke": 0,
+          "Molotov": 1,
+          "HighExplosive": 1
+        },
+        "CounterTerrorist": {
+          "Flashbang": 1,
+          "Smoke": 1,
+          "Molotov": 1,
+          "HighExplosive": 1
+        }
+      }
+    },
+    "MaxTeamNades": {
+      "GLOBAL": {
+        "Terrorist": {
+          "Pistol": "AverageOnePerPlayer",
+          "HalfBuy": "AverageOnePerPlayer",
+          "FullBuy": "AverageOnePerPlayer"
+        },
+        "CounterTerrorist": {
+          "Pistol": "AverageOnePerPlayer",
+          "HalfBuy": "AverageOnePerPlayer",
+          "FullBuy": "AverageOnePerPlayer"
+        }
+      }
+    }
+  },
+  "AWP": {
+    "EnableAwp": 2,
+    "AwpPermission": "@css/vip",
+    "ChanceForAwpWeapon": 50,
+    "MaxAwpWeaponsPerTeam": {
+      "Terrorist": 1,
+      "CounterTerrorist": 1
+    },
+    "MinPlayersPerTeamForAwpWeapon": {
+      "Terrorist": 1,
+      "CounterTerrorist": 1
+    }
+  },
+  "SSG": {
+    "EnableSsg": 2,
+    "SsgPermission": "@css/vip",
+    "ChanceForSsgWeapon": 50,
+    "MaxSsgWeaponsPerTeam": {
+      "Terrorist": 1,
+      "CounterTerrorist": 1
+    },
+    "MinPlayersPerTeamForSsgWeapon": {
+      "Terrorist": 1,
+      "CounterTerrorist": 1
+    }
+  },
+  "EnemyStuff": {
+    "EnableEnemyStuff": 2,
+    "EnemyStuffPermission": "@abs/premium",
+    "ChanceForEnemyStuff": 20,
+    "MaxEnemyStuffPerTeam": {
+      "Terrorist": 1,
+      "CounterTerrorist": 1
+    }
+  },
+  "Zeus": {
+    "EnableZeus": 2,
+    "ChanceForZeusWeapon": 50,
+    "MaxZeusPerTeam": {
+      "Terrorist": 2,
+      "CounterTerrorist": 2
+    }
+  },
+  "Database": {
+    "DatabaseProvider": "MySql",
+    "DatabaseConnectionString": "Server=127.0.0.1;Port=3306;Database=xxxx;Uid=absynthium;Pwd=xxxxx",
+    "MigrateOnStartup": true
+  }
+}
+```
+
 ## Game data / signatures
 The plugin relies on custom signatures for `GetCSWeaponDataFromKey`, `CCSPlayer_ItemServices_CanAcquire`, and `GiveNamedItem2`.
 - `AutoUpdateSignatures: true` downloads updated gamedata on startup (recommended).
