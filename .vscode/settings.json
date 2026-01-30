@@ -1,0 +1,17 @@
+{
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/.git": true,
+        "**/.github": true,
+        "**/node_modules": true,
+        "compile.cmd": true,
+        "compile.ps1": true,
+        "*.user": true,
+        "**/*.csproj.user": true
+    },
+    "search.exclude": {
+        "**/bin": true,
+        "**/obj": true
+    }
+}

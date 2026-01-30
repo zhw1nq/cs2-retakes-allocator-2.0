@@ -17,12 +17,11 @@ using RetakesAllocator.Menus;
 using RetakesAllocatorCore;
 using RetakesAllocatorCore.Config;
 using RetakesAllocatorCore.Db;
-using SQLitePCL;
 using RetakesAllocator.AdvancedMenus;
 using static RetakesAllocatorCore.PluginInfo;
 using RetakesPluginShared;
 using RetakesPluginShared.Events;
-using KitsuneMenu.Core;
+using Menu;
 
 namespace RetakesAllocator;
 
@@ -36,8 +35,12 @@ public class RetakesAllocator : BasePlugin
 
     private readonly AllocatorMenuManager _allocatorMenuManager = new();
     private readonly AdvancedGunMenu _advancedGunMenu = new();
-    private readonly Dictionary<CCSPlayerController, Dictionary<ItemSlotType, CsItem>> _allocatedPlayerItems = new();
+    // Changed from CCSPlayerController to ulong (SteamID) to prevent memory leaks
+    private readonly Dictionary<ulong, Dictionary<ItemSlotType, CsItem>> _allocatedPlayerItems = new();
     private IRetakesPluginEventSender? RetakesPluginEventSender { get; set; }
+
+    // KitsuneMenu instance
+    public static KitsuneMenu Menu { get; private set; } = null!;
 
     private CustomGameData? CustomFunctions { get; set; }
 
@@ -47,6 +50,12 @@ public class RetakesAllocator : BasePlugin
     private bool _bombsiteAnnounceOneTime;
     private bool _weaponDataSignatureFailed;
 
+    // OnTick optimization: cache player counts and throttle updates
+    private int _lastBombsiteTickUpdate;
+    private int _cachedCtCount;
+    private int _cachedTCount;
+    private const int BombsiteUpdateInterval = 32; // Update every ~0.5 seconds instead of every tick
+
     #region Setup
 
     public override void Load(bool hotReload)
@@ -55,8 +64,7 @@ public class RetakesAllocator : BasePlugin
 
         Log.Debug($"Loaded. Hot reload: {hotReload}");
         ResetState();
-        Batteries.Init();
-        KitsuneMenu.KitsuneMenu.Init();
+        Menu = new KitsuneMenu(this);
 
         RegisterListener<Listeners.OnMapStart>(mapName =>
         {
@@ -118,6 +126,9 @@ public class RetakesAllocator : BasePlugin
         {
             HandleHotReload();
         }
+
+        // Initialize the player preference cache
+        PlayerPreferenceCache.Instance.Initialize();
     }
 
     private void ResetState(bool loadConfig = true)
@@ -133,6 +144,10 @@ public class RetakesAllocator : BasePlugin
         RoundTypeManager.Instance.SetCurrentRoundType(null);
         RoundTypeManager.Instance.Initialize();
 
+        // Flush and clear the cache on map change
+        PlayerPreferenceCache.Instance.FlushAllSync();
+        PlayerPreferenceCache.Instance.Clear();
+
         _allocatedPlayerItems.Clear();
         _bombsite = "";
         _announceBombsite = false;
@@ -147,7 +162,7 @@ public class RetakesAllocator : BasePlugin
     public override void Unload(bool hotReload)
     {
         Log.Debug("Unloaded");
-        KitsuneMenu.KitsuneMenu.Cleanup();
+        // KitsuneMenu-Old doesn't need explicit cleanup
         ResetState(loadConfig: false);
         Queries.Disconnect();
 
@@ -163,6 +178,9 @@ public class RetakesAllocator : BasePlugin
             // Clear references to custom game data to avoid native calls after unload
             CustomFunctions = null;
         }
+
+        // Dispose the cache (flushes all dirty entries)
+        PlayerPreferenceCache.Instance.Dispose();
     }
 
     private IRetakesPluginEventSender GetRetakesPluginEventSender()
@@ -238,16 +256,21 @@ public class RetakesAllocator : BasePlugin
         var playerId = Helpers.GetSteamId(player);
         var currentTeam = player!.Team;
 
-        var result = OnWeaponCommandHelper.Handle(
+        // Non-blocking async pattern - responds via callback
+        OnWeaponCommandHelper.HandleFireAndForget(
             Helpers.CommandInfoToArgList(commandInfo),
             playerId,
             RoundTypeManager.Instance.GetCurrentRoundType(),
             currentTeam,
             false,
-            out var selectedWeapon
+            (result, selectedWeapon) =>
+            {
+                if (Helpers.PlayerIsValid(player))
+                {
+                    Helpers.WriteNewlineDelimited(result, player.PrintToChat);
+                }
+            }
         );
-        Helpers.WriteNewlineDelimited(result, commandInfo.ReplyToCommand);
-
         // Preferences now only affect the next allocation; no weapon swap during the current round
     }
 
@@ -284,20 +307,34 @@ public class RetakesAllocator : BasePlugin
             return;
         }
 
-        var result = Task.Run(async () =>
+        // Non-blocking async pattern
+        Task.Run(async () =>
         {
-            var currentPreferredSetting = (await Queries.GetUserSettings(playerId))
-                ?.GetWeaponPreference(currentTeam, WeaponAllocationType.Preferred);
+            try
+            {
+                var currentPreferredSetting = (await Queries.GetUserSettings(playerId))
+                    ?.GetWeaponPreference(currentTeam, WeaponAllocationType.Preferred);
 
-            return await OnWeaponCommandHelper.HandleAsync(
-                new List<string> {CsItem.AWP.ToString()},
-                playerId,
-                RoundTypeManager.Instance.GetCurrentRoundType(),
-                currentTeam,
-                currentPreferredSetting is not null
-            );
-        }).Result;
-        Helpers.WriteNewlineDelimited(result.Item1, commandInfo.ReplyToCommand);
+                var result = await OnWeaponCommandHelper.HandleAsync(
+                    new List<string> { CsItem.AWP.ToString() },
+                    playerId,
+                    RoundTypeManager.Instance.GetCurrentRoundType(),
+                    currentTeam,
+                    currentPreferredSetting is not null
+                );
+                Server.NextFrame(() =>
+                {
+                    if (Helpers.PlayerIsValid(player))
+                    {
+                        Helpers.WriteNewlineDelimited(result.Item1, player.PrintToChat);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"OnAwpCommand error: {ex.Message}");
+            }
+        });
     }
 
     [ConsoleCommand("css_ssg", "Join or leave the SSG queue.")]
@@ -333,23 +370,36 @@ public class RetakesAllocator : BasePlugin
 
         var currentTeam = player!.Team;
 
-        var result = Task.Run(async () =>
+        // Non-blocking async pattern
+        Task.Run(async () =>
         {
-            var currentPreferredSetting = (await Queries.GetUserSettings(playerId))
-                ?.GetWeaponPreference(currentTeam, WeaponAllocationType.Preferred);
+            try
+            {
+                var currentPreferredSetting = (await Queries.GetUserSettings(playerId))
+                    ?.GetWeaponPreference(currentTeam, WeaponAllocationType.Preferred);
 
-            var removing = currentPreferredSetting == CsItem.Scout;
+                var removing = currentPreferredSetting == CsItem.Scout;
 
-            return await OnWeaponCommandHelper.HandleAsync(
-                new List<string> { CsItem.Scout.ToString() },
-                playerId,
-                RoundTypeManager.Instance.GetCurrentRoundType(),
-                currentTeam,
-                removing
-            );
-        }).Result;
-
-        Helpers.WriteNewlineDelimited(result.Item1, commandInfo.ReplyToCommand);
+                var result = await OnWeaponCommandHelper.HandleAsync(
+                    new List<string> { CsItem.Scout.ToString() },
+                    playerId,
+                    RoundTypeManager.Instance.GetCurrentRoundType(),
+                    currentTeam,
+                    removing
+                );
+                Server.NextFrame(() =>
+                {
+                    if (Helpers.PlayerIsValid(player))
+                    {
+                        Helpers.WriteNewlineDelimited(result.Item1, player.PrintToChat);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"OnSsgCommand error: {ex.Message}");
+            }
+        });
     }
 
     [ConsoleCommand("css_zeus", "Toggle whether you will receive a Zeus.")]
@@ -375,17 +425,30 @@ public class RetakesAllocator : BasePlugin
             return;
         }
 
-        var zeusEnabled = Task.Run(async () =>
+        // Non-blocking async pattern
+        Task.Run(async () =>
         {
-            var settings = await Queries.GetUserSettings(playerId);
-            var currentlyEnabled = settings?.ZeusEnabled ?? false;
-            var toggled = !currentlyEnabled;
-            await Queries.SetZeusPreferenceAsync(playerId, toggled);
-            return toggled;
-        }).Result;
+            try
+            {
+                var settings = await Queries.GetUserSettings(playerId);
+                var currentlyEnabled = settings?.ZeusEnabled ?? false;
+                var toggled = !currentlyEnabled;
+                await Queries.SetZeusPreferenceAsync(playerId, toggled);
 
-        var messageKey = zeusEnabled ? "guns_menu.zeus_enabled_message" : "guns_menu.zeus_disabled_message";
-        Helpers.WriteNewlineDelimited(Translator.Instance[messageKey], commandInfo.ReplyToCommand);
+                Server.NextFrame(() =>
+                {
+                    if (Helpers.PlayerIsValid(player))
+                    {
+                        var messageKey = toggled ? "guns_menu.zeus_enabled_message" : "guns_menu.zeus_disabled_message";
+                        Helpers.WriteNewlineDelimited(Translator.Instance[messageKey], player!.PrintToChat);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"OnZeusCommand error: {ex.Message}");
+            }
+        });
     }
     [ConsoleCommand("css_removegun")]
     [CommandHelper(minArgs: 1, usage: "<gun> [T|CT]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
@@ -404,15 +467,21 @@ public class RetakesAllocator : BasePlugin
         var playerId = Helpers.GetSteamId(player);
         var currentTeam = player!.Team;
 
-        var result = OnWeaponCommandHelper.Handle(
+        // Non-blocking async pattern
+        OnWeaponCommandHelper.HandleFireAndForget(
             Helpers.CommandInfoToArgList(commandInfo),
             playerId,
             RoundTypeManager.Instance.GetCurrentRoundType(),
             currentTeam,
             true,
-            out _
+            (result, _) =>
+            {
+                if (Helpers.PlayerIsValid(player))
+                {
+                    player.PrintToChat($"{MessagePrefix}{result}");
+                }
+            }
         );
-        commandInfo.ReplyToCommand($"{MessagePrefix}{result}");
     }
 
     [ConsoleCommand("css_setnextround", "Sets the next round type.")]
@@ -469,7 +538,7 @@ public class RetakesAllocator : BasePlugin
     public HookResult OnWeaponCanAcquire(DynamicHook hook)
     {
         Log.Debug("OnWeaponCanAcquire");
-        
+
         var acquireMethod = hook.GetParam<AcquireMethod>(2);
         if (acquireMethod == AcquireMethod.PickUp)
         {
@@ -714,7 +783,7 @@ public class RetakesAllocator : BasePlugin
                 {
                     if (Helpers.PlayerIsValid(controller) && controller.UserId is not null)
                     {
-                        NativeAPI.IssueClientCommand((int) controller.UserId, slotToSelect);
+                        NativeAPI.IssueClientCommand((int)controller.UserId, slotToSelect);
                     }
                 });
             }
@@ -725,7 +794,7 @@ public class RetakesAllocator : BasePlugin
         var pEntity = new CEntityIdentity(EntitySystem.FirstActiveEntity);
         for (; pEntity is not null && pEntity.Handle != IntPtr.Zero; pEntity = pEntity.Next)
         {
-            var p = Utilities.GetEntityFromIndex<CBasePlayerWeapon>((int) pEntity.EntityInstance.Index);
+            var p = Utilities.GetEntityFromIndex<CBasePlayerWeapon>((int)pEntity.EntityInstance.Index);
             if (p is null)
             {
                 continue;
@@ -760,15 +829,21 @@ public class RetakesAllocator : BasePlugin
             var itemName = Enum.GetName(item);
             if (itemName is not null)
             {
-                var message = OnWeaponCommandHelper.Handle(
-                    new List<string> {itemName},
+                // Use fire-and-forget pattern to avoid blocking
+                OnWeaponCommandHelper.HandleFireAndForget(
+                    new List<string> { itemName },
                     Helpers.GetSteamId(controller),
                     RoundTypeManager.Instance.GetCurrentRoundType(),
                     team,
                     false,
-                    out _
+                    (message, _) =>
+                    {
+                        if (Helpers.PlayerIsValid(controller))
+                        {
+                            Helpers.WriteNewlineDelimited(message, controller.PrintToChat);
+                        }
+                    }
                 );
-                Helpers.WriteNewlineDelimited(message, controller.PrintToChat);
             }
         }
 
@@ -802,23 +877,23 @@ public class RetakesAllocator : BasePlugin
         RoundTypeManager.Instance.SetCurrentRoundType(currentRoundType);
         RoundTypeManager.Instance.SetNextRoundTypeOverride(null);
 
-        switch(currentRoundType)
+        switch (currentRoundType)
         {
             case RoundType.Pistol:
-            {
-                Server.ExecuteCommand("execifexists cs2-retakes/Pistol.cfg");
-                break;
-            }
+                {
+                    Server.ExecuteCommand("execifexists cs2-retakes/Pistol.cfg");
+                    break;
+                }
             case RoundType.HalfBuy:
-            {
-                Server.ExecuteCommand("execifexists cs2-retakes/SmallBuy.cfg");
-                break;
-            }
+                {
+                    Server.ExecuteCommand("execifexists cs2-retakes/SmallBuy.cfg");
+                    break;
+                }
             case RoundType.FullBuy:
-            {
-                Server.ExecuteCommand("execifexists cs2-retakes/FullBuy.cfg");
-                break;
-            }
+                {
+                    Server.ExecuteCommand("execifexists cs2-retakes/FullBuy.cfg");
+                    break;
+                }
         }
 
         if (Configs.GetConfigData().EnableRoundTypeAnnouncement)
@@ -853,29 +928,37 @@ public class RetakesAllocator : BasePlugin
 
         if (_announceBombsite)
         {
+            var currentTick = Server.TickCount;
+
+            // Only update counts periodically instead of every tick (64 times/second)
+            if (currentTick - _lastBombsiteTickUpdate >= BombsiteUpdateInterval)
+            {
+                _lastBombsiteTickUpdate = currentTick;
+                _cachedCtCount = Utilities.GetPlayers()
+                    .Count(p => p.TeamNum == (int)CsTeam.CounterTerrorist && p.PawnIsAlive && !p.IsHLTV);
+                _cachedTCount = Utilities.GetPlayers()
+                    .Count(p => p.TeamNum == (int)CsTeam.Terrorist && p.PawnIsAlive && !p.IsHLTV);
+            }
+
             var playerEntities = Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller");
-            var countct = Utilities.GetPlayers()
-                .Count(p => p.TeamNum == (int) CsTeam.CounterTerrorist && p.PawnIsAlive && !p.IsHLTV);
-            var countt = Utilities.GetPlayers()
-                .Count(p => p.TeamNum == (int) CsTeam.Terrorist && p.PawnIsAlive && !p.IsHLTV);
             string image = _bombsite == "A" ? Translator.Instance["BombSite.A"] :
                 _bombsite == "B" ? Translator.Instance["BombSite.B"] : "";
             foreach (var player in playerEntities)
             {
                 if (!player.IsValid || !player.PawnIsAlive || player.IsBot || player.IsHLTV) continue;
 
-                if (player.TeamNum == (byte) CsTeam.Terrorist &&
+                if (player.TeamNum == (byte)CsTeam.Terrorist &&
                     !Configs.GetConfigData().BombSiteAnnouncementCenterToCTOnly)
                 {
                     StringBuilder builder = new StringBuilder();
-                    builder.AppendFormat(Localizer["T.Message"], _bombsite, image, countt, countct);
+                    builder.AppendFormat(Localizer["T.Message"], _bombsite, image, _cachedTCount, _cachedCtCount);
                     var centerhtml = builder.ToString();
                     player.PrintToCenterHtml(centerhtml);
                 }
-                else if (player.TeamNum == (byte) CsTeam.CounterTerrorist)
+                else if (player.TeamNum == (byte)CsTeam.CounterTerrorist)
                 {
                     StringBuilder builder = new StringBuilder();
-                    builder.AppendFormat(Localizer["CT.Message"], _bombsite, image, countt, countct);
+                    builder.AppendFormat(Localizer["CT.Message"], _bombsite, image, _cachedTCount, _cachedCtCount);
                     var centerhtml = builder.ToString();
                     player.PrintToCenterHtml(centerhtml);
                 }
@@ -919,6 +1002,10 @@ public class RetakesAllocator : BasePlugin
         if (@event == null) return HookResult.Continue;
         _bombsite = "";
         _announceBombsite = false;
+
+        // Clear allocated items - each round has different allocation (pistol/fullbuy/etc)
+        _allocatedPlayerItems.Clear();
+
         return HookResult.Continue;
     }
 
@@ -929,7 +1016,7 @@ public class RetakesAllocator : BasePlugin
         if (@event == null || Helpers.IsWarmup() || _bombsiteAnnounceOneTime) return HookResult.Continue;
 
         var player = @event.Userid;
-        if (player == null || !player.IsValid || player.TeamNum != (byte) CsTeam.Terrorist) return HookResult.Continue;
+        if (player == null || !player.IsValid || player.TeamNum != (byte)CsTeam.Terrorist) return HookResult.Continue;
 
         var playerPawn = player.PlayerPawn;
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -1023,10 +1110,50 @@ public class RetakesAllocator : BasePlugin
     [GameEventHandler]
     public HookResult OnEventPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo info)
     {
+        var player = @event.Userid;
+        if (player != null)
+        {
+            var steamId = Helpers.GetSteamId(player);
+            if (steamId != 0)
+            {
+                // Clean up round allocations to prevent memory leak
+                _allocatedPlayerItems.Remove(steamId);
+
+                // Flush and remove player from cache
+                PlayerPreferenceCache.Instance.Remove(steamId);
+            }
+        }
+
         if (!string.IsNullOrEmpty(Configs.GetConfigData().InGameGunMenuCenterCommands))
         {
             _advancedGunMenu.OnEventPlayerDisconnect(@event, info);
         }
+
+        return HookResult.Continue;
+    }
+
+    [GameEventHandler]
+    public HookResult OnEventPlayerConnectFull(EventPlayerConnectFull @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null) return HookResult.Continue;
+
+        var steamId = Helpers.GetSteamId(player);
+        if (steamId == 0) return HookResult.Continue;
+
+        // Preload player settings into cache in background - non-blocking
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await PlayerPreferenceCache.Instance.PreloadPlayersAsync(new[] { steamId });
+                Log.Debug($"Preloaded settings for player {steamId}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to preload settings for {steamId}: {ex.Message}");
+            }
+        });
 
         return HookResult.Continue;
     }
@@ -1077,18 +1204,24 @@ public class RetakesAllocator : BasePlugin
 
     private void SetPlayerRoundAllocation(CCSPlayerController player, ItemSlotType slotType, CsItem item)
     {
-        if (!_allocatedPlayerItems.TryGetValue(player, out _))
+        var steamId = Helpers.GetSteamId(player);
+        if (steamId == 0) return;
+
+        if (!_allocatedPlayerItems.TryGetValue(steamId, out _))
         {
-            _allocatedPlayerItems[player] = new();
+            _allocatedPlayerItems[steamId] = new();
         }
 
-        _allocatedPlayerItems[player][slotType] = item;
+        _allocatedPlayerItems[steamId][slotType] = item;
         Log.Trace($"Round allocation for player {player.Slot} {slotType} {item}");
     }
 
     private CsItem? GetPlayerRoundAllocation(CCSPlayerController player, ItemSlotType? slotType)
     {
-        if (slotType is null || !_allocatedPlayerItems.TryGetValue(player, out var playerItems))
+        if (slotType is null) return null;
+
+        var steamId = Helpers.GetSteamId(player);
+        if (steamId == 0 || !_allocatedPlayerItems.TryGetValue(steamId, out var playerItems))
         {
             return null;
         }
@@ -1129,7 +1262,7 @@ public class RetakesAllocator : BasePlugin
                 {
                     player.GiveNamedItem(itemString);
                 }
-                
+
                 var slotType = WeaponHelpers.GetSlotTypeForItem(item);
                 if (slotType is not null)
                 {
@@ -1143,7 +1276,7 @@ public class RetakesAllocator : BasePlugin
                 {
                     if (Helpers.PlayerIsValid(player) && player.PawnIsAlive && player.UserId is not null)
                     {
-                        NativeAPI.IssueClientCommand((int) player.UserId, slotToSelect);
+                        NativeAPI.IssueClientCommand((int)player.UserId, slotToSelect);
                     }
                 });
             }

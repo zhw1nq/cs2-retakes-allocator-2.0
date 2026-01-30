@@ -4,8 +4,14 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+        <DebuggerSupport>false</DebuggerSupport>
+        <GenerateDependencyFile>true</GenerateDependencyFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,42 +19,31 @@
         <PackageReference Include="RetakesPluginShared" Version="2.0.0" />
     </ItemGroup>
 
-    <PropertyGroup>
-        <KitsuneMenuSharedPath Condition="'$(KitsuneMenuSharedPath)' == ''">$(MSBuildThisFileDirectory)..\game\csgo\addons\counterstrikesharp\shared\KitsuneMenu\KitsuneMenu.dll</KitsuneMenuSharedPath>
-        <KitsuneMenuLocalBinPath Condition="'$(KitsuneMenuLocalBinPath)' == ''">$(MSBuildThisFileDirectory)KitsuneMenu\src\bin\Release\net8.0\KitsuneMenu.dll</KitsuneMenuLocalBinPath>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <Reference Include="KitsuneMenu" HintPath="$(KitsuneMenuSharedPath)" Condition="Exists('$(KitsuneMenuSharedPath)')" Private="false" />
-        <Reference Include="KitsuneMenu" HintPath="$(KitsuneMenuLocalBinPath)" Condition="!Exists('$(KitsuneMenuSharedPath)') and Exists('$(KitsuneMenuLocalBinPath)')" Private="false" />
-    </ItemGroup>
-
     <ItemGroup>
         <ProjectReference Include="..\RetakesAllocatorCore\RetakesAllocatorCore.csproj" />
     </ItemGroup>
 
-    <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition=" '$(CopyPath)' != '' and $(Configuration) == 'Debug' and '$(OS)' == 'Windows_NT'">
-        <Exec Command="powershell mkdir -p &quot;$(CopyPath)&quot;" ContinueOnError="true" />
-        <Exec Command="powershell Copy-Item -Recurse -Force &quot;$(TargetDir)* $(CopyPath)&quot; "/>
-    </Target>
-    <Target Name="PostBuildRelease" AfterTargets="PostBuildEvent" Condition="$(Configuration) == 'Release' and '$(OS)' == 'Windows_NT'">
-        <Exec Command="powershell rm -Recurse -Force &quot;$(TargetDir)..\$(TargetName)&quot; " ContinueOnError="true"/>
-        <Exec Command="powershell mkdir -p &quot;$(TargetDir)..\$(TargetName)&quot;" />
-        <Exec Command="powershell cp -Force &quot;$(TargetDir)* $(TargetDir)..\$(TargetName)&quot;" />
-        <Exec Command="powershell cp -Force -Recurse &quot;$(TargetDir)runtimes\linux-x64 $(TargetDir)..\$(TargetName)\runtimes&quot;" />
-        <Exec Command="powershell cp -Force -Recurse &quot;$(TargetDir)runtimes\win-x64 $(TargetDir)..\$(TargetName)\runtimes&quot;" />
-        <Exec Command="powershell Compress-Archive -Force -Path &quot;$(TargetDir)..\$(TargetName)\*&quot; -DestinationPath &quot;$(TargetDir)..\$(TargetName).zip&quot; " />
-    </Target>
+    <!-- 3rd_party KitsuneMenu reference -->
     <ItemGroup>
-        <Compile Remove="KitsuneMenu/**/*.cs" />
-        <Compile Remove="**/bin/**/*.cs" />
-        <Compile Remove="**/obj/**/*.cs" />
+        <Reference Include="KitsuneMenu">
+            <HintPath>..\3rd_party\KitsuneMenu.dll</HintPath>
+        </Reference>
     </ItemGroup>
-    <ItemGroup Condition="!Exists('$(KitsuneMenuSharedPath)') and !Exists('$(KitsuneMenuLocalBinPath)')">
-        <Compile Include="KitsuneMenu/src/**/*.cs" />
-    </ItemGroup>
+
     <ItemGroup>
         <None Update="lang\**\*.*" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition=" '$(CopyPath)' != '' and $(Configuration) == 'Debug' and '$(OS)' == 'Windows_NT'">
+        <Exec Command="powershell mkdir -p '$(CopyPath)'" ContinueOnError="true" />
+        <Exec Command="powershell Copy-Item -Recurse -Force '$(TargetDir)*' '$(CopyPath)'" />
+    </Target>
+
+    <Target Name="PostBuildRelease" AfterTargets="PostBuildEvent" Condition="$(Configuration) == 'Release' and '$(OS)' == 'Windows_NT'">
+        <Exec Command="powershell rm -Recurse -Force '$(TargetDir)..\$(TargetName)'" ContinueOnError="true"/>
+        <Exec Command="powershell mkdir -p '$(TargetDir)..\$(TargetName)'" />
+        <Exec Command="powershell cp -Force '$(TargetDir)*' '$(TargetDir)..\$(TargetName)'" />
+        <Exec Command="powershell Compress-Archive -Force -Path '$(TargetDir)..\$(TargetName)\*' -DestinationPath '$(TargetDir)..\$(TargetName).zip'" />
+    </Target>
 
 </Project>

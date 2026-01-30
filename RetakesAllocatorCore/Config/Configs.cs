@@ -207,7 +207,6 @@ public enum WeaponSelectionType
 
 public enum DatabaseProvider
 {
-    Sqlite,
     MySql,
 }
 
@@ -245,7 +244,8 @@ public record ConfigData
             CsTeam,
             Dictionary<CsItem, int>
         >
-    > MaxNades { get; set; } = new()
+    > MaxNades
+    { get; set; } = new()
     {
         {
             NadeHelpers.GlobalSettingName, new()
@@ -278,7 +278,8 @@ public record ConfigData
             CsTeam,
             Dictionary<RoundType, MaxTeamNadesSetting>
         >
-    > MaxTeamNades { get; set; } = new()
+    > MaxTeamNades
+    { get; set; } = new()
     {
         {
             NadeHelpers.GlobalSettingName, new()
@@ -401,8 +402,8 @@ public record ConfigData
 
     public string InGameGunMenuCenterCommands { get; set; } =
         "guns,!guns,/guns,gun,!gun,!gun";
-    public DatabaseProvider DatabaseProvider { get; set; } = DatabaseProvider.Sqlite;
-    public string DatabaseConnectionString { get; set; } = "Data Source=data.db; Pooling=False";
+    public DatabaseProvider DatabaseProvider { get; set; } = DatabaseProvider.MySql;
+    public string DatabaseConnectionString { get; set; } = "Server=localhost;Database=retakes;User=root;Password=;";
     public bool AutoUpdateSignatures { get; set; } = true;
 
     public bool IsZeusEnabled() => EnableZeus > 0;
@@ -996,7 +997,8 @@ public record NadesCategory
             CsTeam,
             Dictionary<CsItem, int>
         >
-    >? MaxNades { get; set; }
+    >? MaxNades
+    { get; set; }
 
     public Dictionary<
         string,
@@ -1004,7 +1006,8 @@ public record NadesCategory
             CsTeam,
             Dictionary<RoundType, MaxTeamNadesSetting>
         >
-    >? MaxTeamNades { get; set; }
+    >? MaxTeamNades
+    { get; set; }
 }
 
 public record AwpCategory

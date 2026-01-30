@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RetakesAllocator", "RetakesAllocator\RetakesAllocator.csproj", "{63CED353-BD36-4715-BBF6-56558D131CE1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RetakesAllocatorTest", "RetakesAllocatorTest\RetakesAllocatorTest.csproj", "{71FB77CC-26A1-4845-9941-131DBBC52C22}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RetakesAllocatorCore", "RetakesAllocatorCore\RetakesAllocatorCore.csproj", "{076A156F-9D3E-4840-976B-BF9F35CD5048}"
 EndProject
 Global

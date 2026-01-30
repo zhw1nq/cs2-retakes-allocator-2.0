@@ -13,7 +13,8 @@ namespace RetakesAllocatorCore.Db;
 
 public class Queries
 {
-    private static readonly SemaphoreSlim UpsertSemaphore = new(1, 1);
+    // Increased from 1 to 5 for better concurrency - reduces contention with write-behind cache
+    private static readonly SemaphoreSlim UpsertSemaphore = new(5, 5);
 
     public static async Task<UserSetting?> GetUserSettings(ulong userId)
     {
@@ -38,7 +39,7 @@ public class Queries
             var userSettings = await instance.UserSettings.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
             if (userSettings is null)
             {
-                userSettings = new UserSetting {UserId = userId};
+                userSettings = new UserSetting { UserId = userId };
                 await instance.UserSettings.AddAsync(userSettings);
                 isNew = true;
             }
@@ -49,6 +50,10 @@ public class Queries
 
             await instance.SaveChangesAsync();
             instance.Entry(userSettings).State = EntityState.Detached;
+
+            // CRITICAL: Update cache after DB save so next round uses new preference
+            Managers.PlayerPreferenceCache.Instance.Set(userId, userSettings);
+            Log.Debug($"Updated cache for {userId}");
 
             return userSettings;
         }
@@ -117,6 +122,31 @@ public class Queries
     {
         Task.Run(async () => { await SetEnemyStuffPreferenceAsync(userId, preference); });
     }
+
+    /// <summary>
+    /// Async version of GetUsersSettings - used for cache preloading without blocking.
+    /// </summary>
+    public static async Task<IDictionary<ulong, UserSetting>> GetUsersSettingsAsync(ICollection<ulong> userIds)
+    {
+        var userSettingsList = await Db.GetInstance()
+            .UserSettings
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.UserId))
+            .ToListAsync();
+
+        if (userSettingsList.Count == 0)
+        {
+            return new Dictionary<ulong, UserSetting>();
+        }
+
+        return userSettingsList
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.First());
+    }
+
+    /// <summary>
+    /// Synchronous version - prefer GetUsersSettingsAsync for non-blocking operation.
+    /// </summary>
     public static IDictionary<ulong, UserSetting> GetUsersSettings(ICollection<ulong> userIds)
     {
         var userSettingsList = Db.GetInstance()
@@ -132,6 +162,46 @@ public class Queries
         return userSettingsList
             .GroupBy(p => p.UserId)
             .ToDictionary(g => g.Key, g => g.First());
+    }
+
+    /// <summary>
+    /// Upsert a complete UserSetting - used by cache flush.
+    /// </summary>
+    public static async Task UpsertUserSettingAsync(ulong userId, UserSetting setting)
+    {
+        if (userId == 0)
+        {
+            Log.Debug("Encountered userid 0, not upserting user settings");
+            return;
+        }
+
+        await UpsertSemaphore.WaitAsync();
+        try
+        {
+            Log.Debug($"Upserting complete settings for {userId}");
+
+            var instance = Db.GetInstance();
+            var existingSettings = await instance.UserSettings.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+
+            if (existingSettings is null)
+            {
+                setting.UserId = userId;
+                await instance.UserSettings.AddAsync(setting);
+                instance.Entry(setting).State = EntityState.Added;
+            }
+            else
+            {
+                setting.UserId = userId;
+                instance.Entry(setting).State = EntityState.Modified;
+            }
+
+            await instance.SaveChangesAsync();
+            instance.Entry(setting).State = EntityState.Detached;
+        }
+        finally
+        {
+            UpsertSemaphore.Release();
+        }
     }
 
     private const int MySqlTableNotFoundError = 1146;

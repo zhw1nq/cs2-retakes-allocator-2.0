@@ -49,7 +49,23 @@ public class OnRoundPostStartHelper
         Log.Debug($"#T Players: {string.Join(",", tPlayers.Select(getSteamId))}");
         Log.Debug($"#CT Players: {string.Join(",", ctPlayers.Select(getSteamId))}");
 
-        var userSettingsByPlayerId = Queries.GetUsersSettings(playerIds);
+        // Use cache instead of sync DB query to avoid round-start lag
+        // Cache is preloaded when players connect and during round prep
+        var userSettingsByPlayerId = PlayerPreferenceCache.Instance.GetMultiple(playerIds);
+
+        // Fallback to DB for any players not yet in cache (rare edge case)
+        var missingPlayerIds = playerIds.Where(id => !userSettingsByPlayerId.ContainsKey(id)).ToList();
+        if (missingPlayerIds.Count > 0)
+        {
+            Log.Debug($"Cache miss for {missingPlayerIds.Count} players, fetching from DB");
+            var dbSettings = Queries.GetUsersSettings(missingPlayerIds);
+            foreach (var kvp in dbSettings)
+            {
+                userSettingsByPlayerId[kvp.Key] = kvp.Value;
+                // Add to cache for future rounds
+                PlayerPreferenceCache.Instance.Set(kvp.Key, kvp.Value);
+            }
+        }
 
         var defusingPlayer = Utils.Choice(ctPlayers);
 

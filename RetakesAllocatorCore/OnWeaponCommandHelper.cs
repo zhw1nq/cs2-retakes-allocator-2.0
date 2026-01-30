@@ -1,3 +1,4 @@
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using RetakesAllocatorCore.Db;
@@ -7,6 +8,37 @@ namespace RetakesAllocatorCore;
 
 public class OnWeaponCommandHelper
 {
+    /// <summary>
+    /// Fire-and-forget async handler that doesn't block the game thread.
+    /// Uses callback to respond to player after async operation completes.
+    /// </summary>
+    public static void HandleFireAndForget(
+        ICollection<string> args,
+        ulong userId,
+        RoundType? roundType,
+        CsTeam currentTeam,
+        bool remove,
+        Action<string, CsItem?> onComplete)
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                var result = await HandleAsync(args, userId, roundType, currentTeam, remove);
+                Server.NextFrame(() => onComplete(result.Item1, result.Item2));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"HandleFireAndForget error: {ex.Message}");
+                Server.NextFrame(() => onComplete("An error occurred processing your request.", null));
+            }
+        });
+    }
+
+    /// <summary>
+    /// Legacy blocking handler - prefer HandleFireAndForget for commands.
+    /// </summary>
+    [Obsolete("Use HandleFireAndForget instead to avoid blocking the game thread")]
     public static string Handle(ICollection<string> args, ulong userId, RoundType? roundType, CsTeam currentTeam,
         bool remove, out CsItem? outWeapon)
     {

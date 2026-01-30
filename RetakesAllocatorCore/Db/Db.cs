@@ -33,9 +33,6 @@ public class Db : DbContext
         var databaseConnectionString = configData.DatabaseConnectionString;
         switch (configData.DatabaseProvider)
         {
-            case DatabaseProvider.Sqlite:
-                Utils.SetupSqlite(databaseConnectionString, optionsBuilder);
-                break;
             case DatabaseProvider.MySql:
                 Utils.SetupMySql(databaseConnectionString, optionsBuilder);
                 break;
