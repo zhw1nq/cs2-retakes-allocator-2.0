@@ -396,7 +396,7 @@ public record ConfigData
     public bool EnableCanAcquireHook { get; set; } = true;
 
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
-    public string ChatMessagePluginName { get; set; } = "Retakes";
+    public string ChatMessagePluginName { get; set; } = "7Mau";
     public string? ChatMessagePluginPrefix { get; set; }
 
     public string InGameGunMenuCenterCommands { get; set; } =
