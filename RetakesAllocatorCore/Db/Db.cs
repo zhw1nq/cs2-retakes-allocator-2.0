@@ -11,9 +11,23 @@ public class Db : DbContext
 
     private static Db? Instance { get; set; }
 
+    /// <summary>
+    /// Gets a shared DbContext instance for synchronous operations like migrations.
+    /// WARNING: Do NOT use this for concurrent async operations - use CreateContext() instead.
+    /// </summary>
     public static Db GetInstance()
     {
         return Instance ??= new Db();
+    }
+
+    /// <summary>
+    /// Creates a new DbContext instance for async operations.
+    /// Each concurrent operation should use its own context to avoid threading issues.
+    /// The caller is responsible for disposing the context.
+    /// </summary>
+    public static Db CreateContext()
+    {
+        return new Db();
     }
 
     public static void Disconnect()

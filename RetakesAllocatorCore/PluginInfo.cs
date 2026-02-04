@@ -13,7 +13,7 @@ public static class PluginInfo
     {
         get
         {
-            var name = "Retakes";
+            var name = "7Mau";
             if (Configs.IsLoaded())
             {
                 if (Configs.GetConfigData().ChatMessagePluginPrefix is not null)
@@ -25,7 +25,7 @@ public static class PluginInfo
                 name = Configs.GetConfigData().ChatMessagePluginName;
             }
 
-            return $"[{ChatColors.Green}{name}{ChatColors.White}] ";
+            return $" {ChatColors.Gold}{name} {ChatColors.Silver}» ";
         }
     }
 }

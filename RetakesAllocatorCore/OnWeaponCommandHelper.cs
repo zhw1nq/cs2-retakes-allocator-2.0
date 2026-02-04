@@ -2,11 +2,151 @@ using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using RetakesAllocatorCore.Db;
 using RetakesAllocatorCore.Config;
+using RetakesAllocatorCore.Managers;
 
 namespace RetakesAllocatorCore;
 
 public class OnWeaponCommandHelper
 {
+    /// <summary>
+    /// Non-blocking cache-based handler. Uses PlayerSettingsCache for instant reads/writes.
+    /// </summary>
+    public static string HandleFromCache(ICollection<string> args, ulong userId, RoundType? roundType, CsTeam currentTeam,
+        bool remove, out CsItem? outWeapon)
+    {
+        outWeapon = null;
+
+        string Ret(string str) => str;
+
+        if (!Configs.GetConfigData().CanPlayersSelectWeapons())
+        {
+            return Ret(Translator.Instance["weapon_preference.cannot_choose"]);
+        }
+
+        if (args.Count == 0)
+        {
+            var gunsMessage = Translator.Instance[
+                "weapon_preference.gun_usage",
+                currentTeam,
+                string.Join(", ",
+                    WeaponHelpers.GetPossibleWeaponsForAllocationType(WeaponAllocationType.PistolRound, currentTeam)),
+                string.Join(", ",
+                    WeaponHelpers.GetPossibleWeaponsForAllocationType(WeaponAllocationType.HalfBuyPrimary,
+                        currentTeam)),
+                string.Join(", ",
+                    WeaponHelpers.GetPossibleWeaponsForAllocationType(WeaponAllocationType.FullBuyPrimary, currentTeam))
+            ];
+            return Ret(gunsMessage);
+        }
+
+        var weaponInput = args.ElementAt(0).Trim();
+
+        CsTeam team;
+        var teamInput = args.ElementAtOrDefault(1)?.Trim().ToLower();
+        if (teamInput is not null)
+        {
+            var parsedTeamInput = Utils.ParseTeam(teamInput);
+            if (parsedTeamInput == CsTeam.None)
+            {
+                return Ret(Translator.Instance["weapon_preference.invalid_team", teamInput]);
+            }
+
+            team = parsedTeamInput;
+        }
+        else if (currentTeam is CsTeam.None or CsTeam.Spectator)
+        {
+            return Ret(Translator.Instance["weapon_preference.join_team"]);
+        }
+        else
+        {
+            team = currentTeam;
+        }
+
+        var foundWeapons = WeaponHelpers.FindValidWeaponsByName(weaponInput);
+        if (foundWeapons.Count == 0)
+        {
+            return Ret(Translator.Instance["weapon_preference.not_found", weaponInput]);
+        }
+
+        var weapon = foundWeapons.First();
+
+        if (!WeaponHelpers.IsUsableWeapon(weapon))
+        {
+            return Ret(Translator.Instance["weapon_preference.not_allowed", weapon]);
+        }
+
+        var weaponRoundTypes = WeaponHelpers.GetRoundTypesForWeapon(weapon);
+        if (weaponRoundTypes.Count == 0)
+        {
+            return Ret(Translator.Instance["weapon_preference.invalid_weapon", weapon]);
+        }
+
+        var allocationType = WeaponHelpers.GetWeaponAllocationTypeForWeaponAndRound(
+            roundType, team, weapon
+        );
+        var isPreferred = allocationType == WeaponAllocationType.Preferred;
+
+        var allocateImmediately = (
+            allocationType is not null &&
+            roundType is not null &&
+            weaponRoundTypes.Contains(roundType.Value) &&
+            currentTeam == team &&
+            !isPreferred
+        );
+
+        if (allocationType is null)
+        {
+            return Ret(Translator.Instance["weapon_preference.not_valid_for_team", weapon, team]);
+        }
+
+        // Use cache for write operations - no DB blocking
+        if (remove)
+        {
+            if (isPreferred)
+            {
+                PlayerSettingsCache.SetPreferredWeapon(userId, null);
+                return Ret(Translator.Instance["weapon_preference.unset_preference_preferred", weapon]);
+            }
+            else
+            {
+                PlayerSettingsCache.SetWeaponPreference(userId, team, allocationType.Value, null);
+                return Ret(
+                    Translator.Instance["weapon_preference.unset_preference", weapon, allocationType.Value, team]);
+            }
+        }
+
+        string message;
+        if (isPreferred)
+        {
+            PlayerSettingsCache.SetPreferredWeapon(userId, weapon);
+            message = Translator.Instance["weapon_preference.set_preference_preferred", weapon];
+        }
+        else
+        {
+            PlayerSettingsCache.SetWeaponPreference(userId, team, allocationType.Value, weapon);
+            message = Translator.Instance["weapon_preference.set_preference", weapon, allocationType.Value, team];
+        }
+
+        if (allocateImmediately)
+        {
+            outWeapon = weapon;
+        }
+        else if (!isPreferred)
+        {
+            message += Translator.Instance["weapon_preference.receive_next_round", weaponRoundTypes.First()];
+        }
+
+        if (userId == 0)
+        {
+            message = Translator.Instance["weapon_preference.not_saved"];
+        }
+
+        return message;
+    }
+
+    /// <summary>
+    /// Legacy blocking handler. Use HandleFromCache instead for non-blocking operation.
+    /// </summary>
     public static string Handle(ICollection<string> args, ulong userId, RoundType? roundType, CsTeam currentTeam,
         bool remove, out CsItem? outWeapon)
     {

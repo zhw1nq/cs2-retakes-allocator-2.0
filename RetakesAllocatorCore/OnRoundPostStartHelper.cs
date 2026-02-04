@@ -49,7 +49,21 @@ public class OnRoundPostStartHelper
         Log.Debug($"#T Players: {string.Join(",", tPlayers.Select(getSteamId))}");
         Log.Debug($"#CT Players: {string.Join(",", ctPlayers.Select(getSteamId))}");
 
-        var userSettingsByPlayerId = Queries.GetUsersSettings(playerIds);
+        // Priority: Read from cache first (contains latest !gun changes), fallback to database
+        var cachedSettings = PlayerSettingsCache.GetCachedSettings(playerIds);
+        var uncachedPlayerIds = playerIds.Where(id => !cachedSettings.ContainsKey(id)).ToList();
+
+        // Only query database for players not in cache
+        var dbSettings = uncachedPlayerIds.Count > 0
+            ? Queries.GetUsersSettings(uncachedPlayerIds)
+            : new Dictionary<ulong, UserSetting>();
+
+        // Merge: cache takes priority over database
+        var userSettingsByPlayerId = new Dictionary<ulong, UserSetting>(dbSettings);
+        foreach (var kvp in cachedSettings)
+        {
+            userSettingsByPlayerId[kvp.Key] = kvp.Value;
+        }
 
         var defusingPlayer = Utils.Choice(ctPlayers);
 

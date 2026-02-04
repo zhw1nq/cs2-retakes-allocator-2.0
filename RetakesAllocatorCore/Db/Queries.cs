@@ -17,7 +17,8 @@ public class Queries
 
     public static async Task<UserSetting?> GetUserSettings(ulong userId)
     {
-        return await Db.GetInstance().UserSettings.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+        await using var db = Db.CreateContext();
+        return await db.UserSettings.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
     }
 
     private static async Task<UserSetting?> UpsertUserSettings(ulong userId, Action<UserSetting> mutation)
@@ -33,12 +34,12 @@ public class Queries
         {
             Log.Debug($"Upserting settings for {userId}");
 
-            var instance = Db.GetInstance();
+            await using var instance = Db.CreateContext();
             var isNew = false;
             var userSettings = await instance.UserSettings.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
             if (userSettings is null)
             {
-                userSettings = new UserSetting {UserId = userId};
+                userSettings = new UserSetting { UserId = userId };
                 await instance.UserSettings.AddAsync(userSettings);
                 isNew = true;
             }
@@ -117,6 +118,79 @@ public class Queries
     {
         Task.Run(async () => { await SetEnemyStuffPreferenceAsync(userId, preference); });
     }
+
+    /// <summary>
+    /// Async version of GetUsersSettings - does not block main thread.
+    /// </summary>
+    public static async Task<IDictionary<ulong, UserSetting>> GetUsersSettingsAsync(ICollection<ulong> userIds)
+    {
+        if (userIds.Count == 0)
+        {
+            return new Dictionary<ulong, UserSetting>();
+        }
+
+        await using var db = Db.CreateContext();
+        var userSettingsList = await db
+            .UserSettings
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.UserId))
+            .ToListAsync();
+
+        if (userSettingsList.Count == 0)
+        {
+            return new Dictionary<ulong, UserSetting>();
+        }
+
+        return userSettingsList
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.First());
+    }
+
+    /// <summary>
+    /// Upserts user settings from cache (batch write).
+    /// Used by PlayerSettingsCache to flush dirty players.
+    /// </summary>
+    public static async Task UpsertUserSettingsFromCacheAsync(ulong userId, UserSetting cachedSettings)
+    {
+        if (userId == 0) return;
+
+        await UpsertSemaphore.WaitAsync();
+        try
+        {
+            await using var instance = Db.CreateContext();
+            var existingSettings = await instance.UserSettings.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserId == userId);
+
+            if (existingSettings is null)
+            {
+                // Insert new
+                var newSettings = new UserSetting
+                {
+                    UserId = userId,
+                    WeaponPreferences = cachedSettings.WeaponPreferences,
+                    ZeusEnabled = cachedSettings.ZeusEnabled,
+                    EnemyStuffTeamPreference = cachedSettings.EnemyStuffTeamPreference
+                };
+                await instance.UserSettings.AddAsync(newSettings);
+                instance.Entry(newSettings).State = EntityState.Added;
+            }
+            else
+            {
+                // Update existing
+                existingSettings.WeaponPreferences = cachedSettings.WeaponPreferences;
+                existingSettings.ZeusEnabled = cachedSettings.ZeusEnabled;
+                existingSettings.EnemyStuffTeamPreference = cachedSettings.EnemyStuffTeamPreference;
+                instance.Entry(existingSettings).State = EntityState.Modified;
+            }
+
+            await instance.SaveChangesAsync();
+        }
+        finally
+        {
+            UpsertSemaphore.Release();
+        }
+    }
+
     public static IDictionary<ulong, UserSetting> GetUsersSettings(ICollection<ulong> userIds)
     {
         var userSettingsList = Db.GetInstance()

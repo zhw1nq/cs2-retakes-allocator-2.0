@@ -245,7 +245,8 @@ public record ConfigData
             CsTeam,
             Dictionary<CsItem, int>
         >
-    > MaxNades { get; set; } = new()
+    > MaxNades
+    { get; set; } = new()
     {
         {
             NadeHelpers.GlobalSettingName, new()
@@ -278,7 +279,8 @@ public record ConfigData
             CsTeam,
             Dictionary<RoundType, MaxTeamNadesSetting>
         >
-    > MaxTeamNades { get; set; } = new()
+    > MaxTeamNades
+    { get; set; } = new()
     {
         {
             NadeHelpers.GlobalSettingName, new()
@@ -396,13 +398,13 @@ public record ConfigData
     public bool EnableCanAcquireHook { get; set; } = true;
 
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
-    public string ChatMessagePluginName { get; set; } = "Retakes";
+    public string ChatMessagePluginName { get; set; } = "7Mau";
     public string? ChatMessagePluginPrefix { get; set; }
 
     public string InGameGunMenuCenterCommands { get; set; } =
         "guns,!guns,/guns,gun,!gun,!gun";
-    public DatabaseProvider DatabaseProvider { get; set; } = DatabaseProvider.Sqlite;
-    public string DatabaseConnectionString { get; set; } = "Data Source=data.db; Pooling=False";
+    public DatabaseProvider DatabaseProvider { get; set; } = DatabaseProvider.MySql;
+    public string DatabaseConnectionString { get; set; } = "Server=localhost;Port=3306;Database=retakes;Uid=root;Pwd=;Pooling=False";
     public bool AutoUpdateSignatures { get; set; } = true;
 
     public bool IsZeusEnabled() => EnableZeus > 0;
@@ -996,7 +998,8 @@ public record NadesCategory
             CsTeam,
             Dictionary<CsItem, int>
         >
-    >? MaxNades { get; set; }
+    >? MaxNades
+    { get; set; }
 
     public Dictionary<
         string,
@@ -1004,7 +1007,8 @@ public record NadesCategory
             CsTeam,
             Dictionary<RoundType, MaxTeamNadesSetting>
         >
-    >? MaxTeamNades { get; set; }
+    >? MaxTeamNades
+    { get; set; }
 }
 
 public record AwpCategory

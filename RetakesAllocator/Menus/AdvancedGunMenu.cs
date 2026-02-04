@@ -14,6 +14,7 @@ using RetakesAllocator;
 using RetakesAllocatorCore;
 using RetakesAllocatorCore.Config;
 using RetakesAllocatorCore.Db;
+using RetakesAllocatorCore.Managers;
 
 namespace RetakesAllocator.AdvancedMenus;
 
@@ -117,7 +118,8 @@ public class AdvancedGunMenu
 
     private async Task<GunMenuData?> BuildMenuDataAsync(CsTeam team, ulong steamId)
     {
-        var userSettings = await Queries.GetUserSettings(steamId);
+        // Use cache for instant read instead of DB call
+        var userSettings = PlayerSettingsCache.GetSettings(steamId);
         var primaryOptions = WeaponHelpers
             .GetPossibleWeaponsForAllocationType(WeaponAllocationType.FullBuyPrimary, team)
             .ToList();
