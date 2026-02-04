@@ -98,7 +98,7 @@ public class AdvancedGunMenu
             return;
         }
 
-        var data = await BuildMenuDataAsync(team, steamId);
+        var data = BuildMenuData(team, steamId);
         if (data == null)
         {
             Helpers.WriteNewlineDelimited(Translator.Instance["weapon_preference.not_saved"], player.PrintToChat);
@@ -116,7 +116,7 @@ public class AdvancedGunMenu
         });
     }
 
-    private async Task<GunMenuData?> BuildMenuDataAsync(CsTeam team, ulong steamId)
+    private GunMenuData? BuildMenuData(CsTeam team, ulong steamId)
     {
         // Use cache for instant read instead of DB call
         var userSettings = PlayerSettingsCache.GetSettings(steamId);
@@ -362,24 +362,14 @@ public class AdvancedGunMenu
         RoundType roundType, CsItem weapon)
     {
         var weaponName = weapon.GetName();
-        _ = Task.Run(async () =>
+        // Use cache-based handler for immediate effect
+        var message = OnWeaponCommandHelper.HandleFromCache(
+            new[] { weaponName }, steamId, roundType, team, false, out _);
+
+        if (!string.IsNullOrWhiteSpace(message))
         {
-            var result = await OnWeaponCommandHelper.HandleAsync(new[] { weaponName }, steamId, roundType, team, false);
-            if (string.IsNullOrWhiteSpace(result.Item1))
-            {
-                return;
-            }
-
-            Server.NextFrame(() =>
-            {
-                if (!Helpers.PlayerIsValid(player))
-                {
-                    return;
-                }
-
-                Helpers.WriteNewlineDelimited(result.Item1, player.PrintToChat);
-            });
-        });
+            Helpers.WriteNewlineDelimited(message, player.PrintToChat);
+        }
     }
 
     private void HandleSniperChoice(CCSPlayerController player, GunMenuData data, string choice, IReadOnlyList<string> options)
@@ -430,7 +420,8 @@ public class AdvancedGunMenu
         }
 
         data.ZeusEnabled = enabled;
-        Queries.SetZeusPreference(data.SteamId, enabled);
+        // Update cache first for immediate effect, then persist to database
+        PlayerSettingsCache.SetZeusPreference(data.SteamId, enabled);
 
         var messageKey = enabled ? "guns_menu.zeus_enabled_message" : "guns_menu.zeus_disabled_message";
         Helpers.WriteNewlineDelimited(Translator.Instance[messageKey], player.PrintToChat);
@@ -474,7 +465,8 @@ public class AdvancedGunMenu
         }
 
         data.EnemyStuffPreference = selectedPreference;
-        Queries.SetEnemyStuffPreference(data.SteamId, selectedPreference);
+        // Update cache first for immediate effect, then persist to database
+        PlayerSettingsCache.SetEnemyStuffPreference(data.SteamId, selectedPreference);
 
         var messageKey = selectedPreference switch
         {
@@ -511,9 +503,11 @@ public class AdvancedGunMenu
         var previousPreference = data.PreferredSniper;
         data.PreferredSniper = preference;
 
+        // Update cache first for immediate effect
+        PlayerSettingsCache.SetPreferredWeapon(steamId, preference);
+
         _ = Task.Run(async () =>
         {
-            await Queries.SetAwpWeaponPreferenceAsync(steamId, preference);
 
             string message;
             if (preference.HasValue)

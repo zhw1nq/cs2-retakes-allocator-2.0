@@ -596,6 +596,14 @@ public class RetakesAllocator : BasePlugin
                 return RetStop();
             }
 
+            // Check cache first (contains latest settings), fallback to database
+            var cachedSetting = PlayerSettingsCache.GetSettings(steamId);
+            if (cachedSetting != null)
+            {
+                return cachedSetting.ZeusEnabled == true ? HookResult.Continue : RetStop();
+            }
+
+            // Fallback to database if not in cache
             var userSettings = Queries.GetUsersSettings(new[] { steamId });
             userSettings.TryGetValue(steamId, out var userSetting);
 
@@ -676,6 +684,9 @@ public class RetakesAllocator : BasePlugin
             purchasedAllocationType is not null
         )
         {
+            // Update cache first for immediate consistency
+            PlayerSettingsCache.SetWeaponPreference(playerId, team, purchasedAllocationType.Value, item);
+            // Then persist to database async
             Queries.SetWeaponPreferenceForUser(
                 playerId,
                 team,
@@ -794,7 +805,8 @@ public class RetakesAllocator : BasePlugin
             var itemName = Enum.GetName(item);
             if (itemName is not null)
             {
-                var message = OnWeaponCommandHelper.Handle(
+                // Use cache-based handler for consistency
+                var message = OnWeaponCommandHelper.HandleFromCache(
                     new List<string> { itemName },
                     Helpers.GetSteamId(controller),
                     RoundTypeManager.Instance.GetCurrentRoundType(),
