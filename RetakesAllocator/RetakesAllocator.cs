@@ -21,7 +21,7 @@ using RetakesAllocator.AdvancedMenus;
 using static RetakesAllocatorCore.PluginInfo;
 using RetakesPluginShared;
 using RetakesPluginShared.Events;
-using KitsuneMenu.Core;
+using Menu;
 
 namespace RetakesAllocator;
 
@@ -38,6 +38,7 @@ public class RetakesAllocator : BasePlugin
     private readonly Dictionary<CCSPlayerController, Dictionary<ItemSlotType, CsItem>> _allocatedPlayerItems = new();
     private readonly Dictionary<ulong, DateTime> _gunCommandCooldowns = new();
     private const double GunCommandCooldownSeconds = 5.0;
+    public static KitsuneMenu? Menu { get; private set; }
     private IRetakesPluginEventSender? RetakesPluginEventSender { get; set; }
 
     private CustomGameData? CustomFunctions { get; set; }
@@ -60,7 +61,7 @@ public class RetakesAllocator : BasePlugin
 
         Log.Debug($"Loaded. Hot reload: {hotReload}");
         ResetState();
-        KitsuneMenu.KitsuneMenu.Init();
+        Menu = new KitsuneMenu(this);
 
         RegisterListener<Listeners.OnMapStart>(mapName =>
         {
@@ -163,7 +164,6 @@ public class RetakesAllocator : BasePlugin
         // Flush all cached data before unloading
         PlayerSettingsCache.FlushDirtyPlayersAsync().GetAwaiter().GetResult();
 
-        KitsuneMenu.KitsuneMenu.Cleanup();
         ResetState(loadConfig: false);
         Queries.Disconnect();
 
