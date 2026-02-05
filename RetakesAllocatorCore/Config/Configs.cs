@@ -402,6 +402,8 @@ public record ConfigData
 
     public string InGameGunMenuCenterCommands { get; set; } =
         "guns,!guns,/guns,gun,!gun,!gun";
+    public double WeaponChangeCooldownSeconds { get; set; } = 5.0;
+    public bool MenuFreezePlayer { get; set; } = false;
     public DatabaseProvider DatabaseProvider { get; set; } = DatabaseProvider.MySql;
     public string DatabaseConnectionString { get; set; } = "Server=localhost;Port=3306;Database=retakes;Uid=root;Pwd=;Pooling=False";
     public bool AutoUpdateSignatures { get; set; } = true;
@@ -584,6 +586,8 @@ public record ConfigFileLayout
             ChatMessagePluginName = data.ChatMessagePluginName,
             ChatMessagePluginPrefix = data.ChatMessagePluginPrefix,
             InGameGunMenuCenterCommands = data.InGameGunMenuCenterCommands,
+            WeaponChangeCooldownSeconds = data.WeaponChangeCooldownSeconds,
+            MenuFreezePlayer = data.MenuFreezePlayer,
             AutoUpdateSignatures = data.AutoUpdateSignatures,
         },
         RoundTypes = new RoundTypesCategory
@@ -729,6 +733,14 @@ public record ConfigFileLayout
             if (Config.InGameGunMenuCenterCommands is not null)
             {
                 data.InGameGunMenuCenterCommands = Config.InGameGunMenuCenterCommands;
+            }
+            if (Config.WeaponChangeCooldownSeconds is double weaponChangeCooldownSeconds)
+            {
+                data.WeaponChangeCooldownSeconds = weaponChangeCooldownSeconds;
+            }
+            if (Config.MenuFreezePlayer is bool menuFreezePlayer)
+            {
+                data.MenuFreezePlayer = menuFreezePlayer;
             }
             if (Config.AutoUpdateSignatures is bool autoUpdateSignatures)
             {
@@ -968,6 +980,8 @@ public record ConfigCategory
     public string? ChatMessagePluginName { get; set; }
     public string? ChatMessagePluginPrefix { get; set; }
     public string? InGameGunMenuCenterCommands { get; set; }
+    public double? WeaponChangeCooldownSeconds { get; set; }
+    public bool? MenuFreezePlayer { get; set; }
     public bool? AutoUpdateSignatures { get; set; }
 }
 

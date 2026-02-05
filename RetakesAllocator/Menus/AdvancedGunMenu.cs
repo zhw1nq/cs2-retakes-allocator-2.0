@@ -238,7 +238,7 @@ public class AdvancedGunMenu
             {
                 action.Invoke(player);
             }
-        }, false, freezePlayer: false, disableDeveloper: true);
+        }, false, freezePlayer: Configs.GetConfigData().MenuFreezePlayer, disableDeveloper: true);
     }
 
     private void ShowWeaponSubmenu(CCSPlayerController player, GunMenuData data, WeaponAllocationType allocType, List<CsItem> weapons)
@@ -271,7 +271,7 @@ public class AdvancedGunMenu
                 ApplyWeaponSelection(player, data, allocType, weapon);
                 ShowMainMenu(player, data);
             }
-        }, true, freezePlayer: false, disableDeveloper: true);
+        }, true, freezePlayer: Configs.GetConfigData().MenuFreezePlayer, disableDeveloper: true);
     }
 
     private void ShowSniperSubmenu(CCSPlayerController player, GunMenuData data)
@@ -304,7 +304,7 @@ public class AdvancedGunMenu
                 ApplySniperPreference(player, data, choice.Value);
                 ShowMainMenu(player, data);
             }
-        }, true, freezePlayer: false, disableDeveloper: true);
+        }, true, freezePlayer: Configs.GetConfigData().MenuFreezePlayer, disableDeveloper: true);
     }
 
     private void ShowEnemyStuffSubmenu(CCSPlayerController player, GunMenuData data)
@@ -337,7 +337,7 @@ public class AdvancedGunMenu
                 ApplyEnemyStuffPreference(player, data, preference);
                 ShowMainMenu(player, data);
             }
-        }, true, freezePlayer: false, disableDeveloper: true);
+        }, true, freezePlayer: Configs.GetConfigData().MenuFreezePlayer, disableDeveloper: true);
     }
 
     private void ApplyWeaponSelection(CCSPlayerController player, GunMenuData data, WeaponAllocationType allocType, CsItem weapon)

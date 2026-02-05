@@ -37,7 +37,6 @@ public class RetakesAllocator : BasePlugin
     private readonly AdvancedGunMenu _advancedGunMenu = new();
     private readonly Dictionary<CCSPlayerController, Dictionary<ItemSlotType, CsItem>> _allocatedPlayerItems = new();
     private readonly Dictionary<ulong, DateTime> _gunCommandCooldowns = new();
-    private const double GunCommandCooldownSeconds = 5.0;
     public static KitsuneMenu? Menu { get; private set; }
     private IRetakesPluginEventSender? RetakesPluginEventSender { get; set; }
 
@@ -271,13 +270,15 @@ public class RetakesAllocator : BasePlugin
         var currentTeam = player!.Team;
 
         // Check cooldown for weapon swap (not for preference save)
+        var cooldownSeconds = Configs.GetConfigData().WeaponChangeCooldownSeconds;
         if (player.PawnIsAlive && _gunCommandCooldowns.TryGetValue(playerId, out var lastUsed))
         {
             var elapsed = (DateTime.UtcNow - lastUsed).TotalSeconds;
-            if (elapsed < GunCommandCooldownSeconds)
+            if (elapsed < cooldownSeconds)
             {
-                var remaining = Math.Ceiling(GunCommandCooldownSeconds - elapsed);
-                commandInfo.ReplyToCommand($"{PluginInfo.MessagePrefix}Please wait {remaining}s before changing weapon again.");
+                var remaining = (int)Math.Ceiling(cooldownSeconds - elapsed);
+                var message = Translator.Instance["weapon_preference.cooldown_message", remaining];
+                commandInfo.ReplyToCommand($"{PluginInfo.MessagePrefix}{message}");
                 return;
             }
         }

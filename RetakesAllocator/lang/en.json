@@ -32,6 +32,7 @@
   "weapon_preference.awp_disabled": "This server has disabled AWP preferences.",
   "weapon_preference.ssg_disabled": "This server has disabled SSG preferences.",
   "weapon_preference.enemy_disabled": "This server has disabled enemy weapon preferences.",
+  "weapon_preference.cooldown_message": "Please wait {0}s before changing weapon again.",
   "menu.timeout": "You did not interact with the menu in {0} seconds!",
   "menu.exit": "Exit",
   "menu.already_in_menu": "You are already using another menu!",
@@ -76,4 +77,3 @@
   "chatBsite.line5": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎  回︎",
   "chatBsite.line6": "{DarkBlue}[Retakes] {Yellow} 回︎回︎回︎回︎"
 }
-

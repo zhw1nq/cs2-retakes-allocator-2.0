@@ -2,20 +2,16 @@
   "roundtype.Pistol": "Pistol",
   "roundtype.HalfBuy": "Half Buy",
   "roundtype.FullBuy": "Full Buy",
-
   "weapon_type.primary": "Súng chính",
   "weapon_type.secondary": "Súng phụ",
   "weapon_type.pistol": "Pistol",
-
   "teams.terrorist": "Terrorist",
   "teams.terrorist_short": "T",
   "teams.counter_terrorist": "Counter-Terrorist",
   "teams.counter_terrorist_short": "CT",
-
   "announcement.roundtype": "{0} Round",
   "announcement.next_roundtype_set": "Round sau là {0}.",
   "announcement.next_roundtype_set_invalid": "Round không hợp lệ: {0}.",
-
   "weapon_preference.cannot_choose": "Server không cho chọn súng.",
   "weapon_preference.gun_usage": "Dùng: !gun <súng>\nSúng hợp lệ cho {0}:\nPistol: {1}\nHalf buy: {2}\nFull buy: {3}",
   "weapon_preference.invalid_team": "Team không hợp lệ: {0}.",
@@ -24,70 +20,56 @@
   "weapon_preference.not_allowed": "Súng '{0}' không được phép.",
   "weapon_preference.invalid_weapon": "Súng không hợp lệ: '{0}'.",
   "weapon_preference.not_valid_for_team": "Súng '{0}' không dùng cho {1}.",
-
   "weapon_preference.unset_preference_preferred": "Không còn nhận '{0}'.",
   "weapon_preference.unset_preference_preferred_random": "Không còn nhận sniper ngẫu nhiên.",
   "weapon_preference.unset_preference": "Bỏ '{0}' khỏi {1} ({2}).",
-
   "weapon_preference.set_preference_preferred": "Ưu tiên '{0}' khi tới lượt sniper.",
   "weapon_preference.set_preference_preferred_random": "Sniper ngẫu nhiên khi tới lượt.",
   "weapon_preference.set_preference": "Đã chọn '{0}' cho {1} ({2}).",
   "weapon_preference.receive_next_round": " Nhận ở round {0}.",
-
   "weapon_preference.not_saved": "Steam ID không hợp lệ, không lưu.",
   "weapon_preference.only_vip_can_use": "Chỉ VIP dùng được.",
   "weapon_preference.awp_disabled": "AWP bị tắt.",
   "weapon_preference.ssg_disabled": "SSG bị tắt.",
   "weapon_preference.enemy_disabled": "Súng địch bị tắt.",
-
+  "weapon_preference.cooldown_message": "Vui lòng đợi {0}s trước khi đổi súng.",
   "menu.timeout": "Hết thời gian ({0}s).",
   "menu.exit": "Thoát",
   "menu.already_in_menu": "Đang mở menu khác.",
-
   "vote_menu.select_vote": "Chọn vote.",
-
   "guns_menu.invalid_steam_id": "Steam ID không hợp lệ.",
   "guns_menu.title": "Loadout {0}",
   "guns_menu.unavailable": "Không khả dụng",
-
   "guns_menu.sniper_label": "Sniper",
   "guns_menu.sniper_awp": "AWP",
   "guns_menu.sniper_ssg": "SSG",
   "guns_menu.sniper_random": "Ngẫu nhiên",
   "guns_menu.sniper_disabled": "Tắt",
-
   "guns_menu.enemy_stuff_label": "Súng địch",
   "guns_menu.enemy_stuff_choice_disable": "Tắt",
   "guns_menu.enemy_stuff_choice_t_only": "Bật (T)",
   "guns_menu.enemy_stuff_choice_ct_only": "Bật (CT)",
   "guns_menu.enemy_stuff_choice_both": "Bật (Cả hai)",
-
   "guns_menu.enemy_stuff_enabled_t_message": "Thỉnh thoảng nhận súng CT khi chơi T.",
   "guns_menu.enemy_stuff_enabled_ct_message": "Thỉnh thoảng nhận súng T khi chơi CT.",
   "guns_menu.enemy_stuff_enabled_both_message": "Thỉnh thoảng nhận súng địch.",
   "guns_menu.enemy_stuff_disabled_message": "Không nhận súng địch.",
-
   "guns_menu.zeus_label": "Zeus",
   "guns_menu.zeus_choice_enable": "Bật",
   "guns_menu.zeus_choice_disable": "Tắt",
   "guns_menu.zeus_enabled_message": "Nhận Zeus mỗi round.",
   "guns_menu.zeus_disabled_message": "Không nhận Zeus.",
-
   "guns_menu.complete": "Hoàn tất!\nÁp dụng từ round sau.",
-
   "BombSite.A": "<img src='https://cdn.zhw1nq.com/plugins/A.gif' class=''>",
   "BombSite.B": "<img src='https://cdn.zhw1nq.com/plugins/B.gif' class=''>",
-
   "T.Message": "<font color='red'>DEF</font> <font color='white'>SITE</font> <font color='red'>{0}</font><br>{1}<br>{2} <font color='red'>T</font> vs. {3} <font color='#0182FB'>CT</font>",
   "CT.Message": "<font color='#0182FB'>RETAKE</font> <font color='white'>SITE</font> <font color='#0182FB'>{0}</font><br>{1}<br>{2} <font color='red'>T</font> vs. {3} <font color='#0182FB'>CT</font>",
-
   "chatAsite.line1": "{DarkBlue}[Retakes] {Yellow} ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎回︎回︎回︎回︎",
   "chatAsite.line2": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎回︎回︎",
   "chatAsite.line3": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ 回︎回︎",
   "chatAsite.line4": "{DarkBlue}[Retakes] {Yellow} 回︎回︎回︎回︎回︎回︎",
   "chatAsite.line5": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ 回︎回︎",
   "chatAsite.line6": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ 回︎回︎",
-
   "chatBsite.line1": "{DarkBlue}[Retakes] {Yellow} 回︎回︎回︎回︎",
   "chatBsite.line2": "{DarkBlue}[Retakes] {Yellow} 回︎回︎‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‏‏‎ ‎‎‏‏‎ ‎‏‏‎ ‎‏‏‎回︎",
   "chatBsite.line3": "{DarkBlue}[Retakes] {Yellow} 回︎回︎回︎回︎",
