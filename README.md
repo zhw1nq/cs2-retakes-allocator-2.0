@@ -76,7 +76,7 @@ Config lives in `addons/counterstrikesharp/configs/plugins/RetakesAllocator/conf
 - **EnemyStuff**: access mode, permission, chance, per-team limits.
 - **Zeus**: enable flag, chance, per-team caps.
 - **Nades**: `MaxNades`, `MaxTeamNades`.
-- **Database**: provider (`Sqlite`/`MySql`), connection string, migration toggle.
+- **Database**: MySQL connection string, migration toggle.
 
 Minimal categorized example:
 ```json

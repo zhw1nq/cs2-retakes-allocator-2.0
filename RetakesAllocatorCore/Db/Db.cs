@@ -41,28 +41,15 @@ public class Db : DbContext
         optionsBuilder
             .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
 
-        // TODO This whole thing needs to be fixed per
-        // https://jasonwatmore.com/post/2020/01/03/aspnet-core-ef-core-migrations-for-multiple-databases-sqlite-and-sql-server
         var configData = Configs.IsLoaded() ? Configs.GetConfigData() : new ConfigData();
         var databaseConnectionString = configData.DatabaseConnectionString;
-        switch (configData.DatabaseProvider)
-        {
-            case DatabaseProvider.Sqlite:
-                Utils.SetupSqlite(databaseConnectionString, optionsBuilder);
-                break;
-            case DatabaseProvider.MySql:
-                Utils.SetupMySql(databaseConnectionString, optionsBuilder);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+
+        // MySQL only
+        Utils.SetupMySql(databaseConnectionString, optionsBuilder);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<UserSetting>()
-            .Property(e => e.WeaponPreferences)
-            .IsRequired(false);
         base.OnModelCreating(modelBuilder);
     }
 
@@ -70,7 +57,7 @@ public class Db : DbContext
     {
         UserSetting.Configure(configurationBuilder);
         configurationBuilder
-            .Properties<CsItem>()
+            .Properties<CsItem?>()
             .HaveConversion<CsItemConverter>();
     }
 }

@@ -75,7 +75,19 @@ public class Queries
 
     public static async Task ClearWeaponPreferencesForUserAsync(ulong userId)
     {
-        await UpsertUserSettings(userId, userSetting => { userSetting.WeaponPreferences = new(); });
+        await UpsertUserSettings(userId, userSetting =>
+        {
+            userSetting.T_PistolRound = null;
+            userSetting.T_Secondary = null;
+            userSetting.T_HalfBuyPrimary = null;
+            userSetting.T_FullBuyPrimary = null;
+            userSetting.T_Preferred = null;
+            userSetting.CT_PistolRound = null;
+            userSetting.CT_Secondary = null;
+            userSetting.CT_HalfBuyPrimary = null;
+            userSetting.CT_FullBuyPrimary = null;
+            userSetting.CT_Preferred = null;
+        });
     }
 
     public static void ClearWeaponPreferencesForUser(ulong userId)
@@ -167,7 +179,19 @@ public class Queries
                 var newSettings = new UserSetting
                 {
                     UserId = userId,
-                    WeaponPreferences = cachedSettings.WeaponPreferences,
+                    // T Team
+                    T_PistolRound = cachedSettings.T_PistolRound,
+                    T_Secondary = cachedSettings.T_Secondary,
+                    T_HalfBuyPrimary = cachedSettings.T_HalfBuyPrimary,
+                    T_FullBuyPrimary = cachedSettings.T_FullBuyPrimary,
+                    T_Preferred = cachedSettings.T_Preferred,
+                    // CT Team
+                    CT_PistolRound = cachedSettings.CT_PistolRound,
+                    CT_Secondary = cachedSettings.CT_Secondary,
+                    CT_HalfBuyPrimary = cachedSettings.CT_HalfBuyPrimary,
+                    CT_FullBuyPrimary = cachedSettings.CT_FullBuyPrimary,
+                    CT_Preferred = cachedSettings.CT_Preferred,
+                    // Other settings
                     ZeusEnabled = cachedSettings.ZeusEnabled,
                     EnemyStuffTeamPreference = cachedSettings.EnemyStuffTeamPreference
                 };
@@ -176,8 +200,17 @@ public class Queries
             }
             else
             {
-                // Update existing
-                existingSettings.WeaponPreferences = cachedSettings.WeaponPreferences;
+                // Update existing - copy all fields
+                existingSettings.T_PistolRound = cachedSettings.T_PistolRound;
+                existingSettings.T_Secondary = cachedSettings.T_Secondary;
+                existingSettings.T_HalfBuyPrimary = cachedSettings.T_HalfBuyPrimary;
+                existingSettings.T_FullBuyPrimary = cachedSettings.T_FullBuyPrimary;
+                existingSettings.T_Preferred = cachedSettings.T_Preferred;
+                existingSettings.CT_PistolRound = cachedSettings.CT_PistolRound;
+                existingSettings.CT_Secondary = cachedSettings.CT_Secondary;
+                existingSettings.CT_HalfBuyPrimary = cachedSettings.CT_HalfBuyPrimary;
+                existingSettings.CT_FullBuyPrimary = cachedSettings.CT_FullBuyPrimary;
+                existingSettings.CT_Preferred = cachedSettings.CT_Preferred;
                 existingSettings.ZeusEnabled = cachedSettings.ZeusEnabled;
                 existingSettings.EnemyStuffTeamPreference = cachedSettings.EnemyStuffTeamPreference;
                 instance.Entry(existingSettings).State = EntityState.Modified;
@@ -296,7 +329,16 @@ WHERE table_schema = DATABASE()
 CREATE TABLE IF NOT EXISTS UserSettings
 (
     UserId BIGINT UNSIGNED NOT NULL,
-    WeaponPreferences LONGTEXT NULL,
+    T_PistolRound INT NULL,
+    T_Secondary INT NULL,
+    T_HalfBuyPrimary INT NULL,
+    T_FullBuyPrimary INT NULL,
+    T_Preferred INT NULL,
+    CT_PistolRound INT NULL,
+    CT_Secondary INT NULL,
+    CT_HalfBuyPrimary INT NULL,
+    CT_FullBuyPrimary INT NULL,
+    CT_Preferred INT NULL,
     ZeusEnabled TINYINT(1) NOT NULL DEFAULT 0,
     EnemyStuffTeamPreference INT NOT NULL DEFAULT 0,
     CONSTRAINT PK_UserSettings PRIMARY KEY (UserId)
@@ -308,11 +350,17 @@ ALTER TABLE UserSettings
     MODIFY COLUMN UserId BIGINT UNSIGNED NOT NULL;
 """);
 
-        context.Database.ExecuteSqlRaw(
-            MySqlColumnSqlHelper.BuildAddColumnIfMissingSql(
-                "UserSettings",
-                "WeaponPreferences",
-                "LONGTEXT NULL"));
+        // Add weapon preference columns if missing
+        var weaponColumns = new[]
+        {
+            "T_PistolRound", "T_Secondary", "T_HalfBuyPrimary", "T_FullBuyPrimary", "T_Preferred",
+            "CT_PistolRound", "CT_Secondary", "CT_HalfBuyPrimary", "CT_FullBuyPrimary", "CT_Preferred"
+        };
+        foreach (var col in weaponColumns)
+        {
+            context.Database.ExecuteSqlRaw(
+                MySqlColumnSqlHelper.BuildAddColumnIfMissingSql("UserSettings", col, "INT NULL"));
+        }
 
         context.Database.ExecuteSqlRaw(
             MySqlColumnSqlHelper.BuildAddColumnIfMissingSql(

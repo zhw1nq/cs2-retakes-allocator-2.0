@@ -88,8 +88,9 @@ public class OnWeaponCommandHelper
 
         var allocateImmediately = (
             allocationType is not null &&
-            roundType is not null &&
-            weaponRoundTypes.Contains(roundType.Value) &&
+            weaponRoundTypes.Count > 0 &&
+            // Allow if roundType null OR weapon matches current round
+            (roundType is null || weaponRoundTypes.Contains(roundType.Value)) &&
             currentTeam == team &&
             !isPreferred
         );

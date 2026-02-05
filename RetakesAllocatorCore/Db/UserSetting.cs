@@ -1,19 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RetakesAllocatorCore.Config;
 
 namespace RetakesAllocatorCore.Db;
-
-using WeaponPreferencesType = Dictionary<
-    CsTeam,
-    Dictionary<WeaponAllocationType, CsItem>
->;
 
 public class UserSetting
 {
@@ -23,8 +15,19 @@ public class UserSetting
     [Column(TypeName = "bigint")]
     public ulong UserId { get; set; }
 
-    [Column(TypeName = "text"), MaxLength(10000)]
-    public WeaponPreferencesType WeaponPreferences { get; set; } = new();
+    // Terrorist Team Preferences
+    public CsItem? T_PistolRound { get; set; }
+    public CsItem? T_Secondary { get; set; }
+    public CsItem? T_HalfBuyPrimary { get; set; }
+    public CsItem? T_FullBuyPrimary { get; set; }
+    public CsItem? T_Preferred { get; set; }
+
+    // Counter-Terrorist Team Preferences
+    public CsItem? CT_PistolRound { get; set; }
+    public CsItem? CT_Secondary { get; set; }
+    public CsItem? CT_HalfBuyPrimary { get; set; }
+    public CsItem? CT_FullBuyPrimary { get; set; }
+    public CsItem? CT_Preferred { get; set; }
 
     public bool ZeusEnabled { get; set; } = false;
 
@@ -32,9 +35,7 @@ public class UserSetting
 
     public static void Configure(ModelConfigurationBuilder configurationBuilder)
     {
-        configurationBuilder
-            .Properties<WeaponPreferencesType>()
-            .HaveConversion<WeaponPreferencesConverter, WeaponPreferencesComparer>();
+        // CsItem conversion configured in Db.cs
     }
 
     public bool IsEnemyStuffEnabledForTeam(CsTeam team)
@@ -51,103 +52,63 @@ public class UserSetting
 
     public void SetWeaponPreference(CsTeam team, WeaponAllocationType weaponAllocationType, CsItem? weapon)
     {
-        // Log.Write($"Setting preference for {UserId} {team} {weaponAllocationType} {weapon}");
-        if (!WeaponPreferences.TryGetValue(team, out var allocationPreference))
+        switch (team)
         {
-            allocationPreference = new();
-            WeaponPreferences.Add(team, allocationPreference);
-        }
-
-        if (weapon is not null)
-        {
-            allocationPreference[weaponAllocationType] = (CsItem) weapon;
-        }
-        else
-        {
-            allocationPreference.Remove(weaponAllocationType);
+            case CsTeam.Terrorist:
+                switch (weaponAllocationType)
+                {
+                    case WeaponAllocationType.PistolRound: T_PistolRound = weapon; break;
+                    case WeaponAllocationType.Secondary: T_Secondary = weapon; break;
+                    case WeaponAllocationType.HalfBuyPrimary: T_HalfBuyPrimary = weapon; break;
+                    case WeaponAllocationType.FullBuyPrimary: T_FullBuyPrimary = weapon; break;
+                    case WeaponAllocationType.Preferred: T_Preferred = weapon; break;
+                }
+                break;
+            case CsTeam.CounterTerrorist:
+                switch (weaponAllocationType)
+                {
+                    case WeaponAllocationType.PistolRound: CT_PistolRound = weapon; break;
+                    case WeaponAllocationType.Secondary: CT_Secondary = weapon; break;
+                    case WeaponAllocationType.HalfBuyPrimary: CT_HalfBuyPrimary = weapon; break;
+                    case WeaponAllocationType.FullBuyPrimary: CT_FullBuyPrimary = weapon; break;
+                    case WeaponAllocationType.Preferred: CT_Preferred = weapon; break;
+                }
+                break;
         }
     }
 
     public CsItem? GetWeaponPreference(CsTeam team, WeaponAllocationType weaponAllocationType)
     {
-        if (WeaponPreferences.TryGetValue(team, out var allocationPreference))
+        return team switch
         {
-            if (allocationPreference.TryGetValue(weaponAllocationType, out var weapon))
+            CsTeam.Terrorist => weaponAllocationType switch
             {
-                return weapon;
-            }
-        }
-
-        return null;
+                WeaponAllocationType.PistolRound => T_PistolRound,
+                WeaponAllocationType.Secondary => T_Secondary,
+                WeaponAllocationType.HalfBuyPrimary => T_HalfBuyPrimary,
+                WeaponAllocationType.FullBuyPrimary => T_FullBuyPrimary,
+                WeaponAllocationType.Preferred => T_Preferred,
+                _ => null
+            },
+            CsTeam.CounterTerrorist => weaponAllocationType switch
+            {
+                WeaponAllocationType.PistolRound => CT_PistolRound,
+                WeaponAllocationType.Secondary => CT_Secondary,
+                WeaponAllocationType.HalfBuyPrimary => CT_HalfBuyPrimary,
+                WeaponAllocationType.FullBuyPrimary => CT_FullBuyPrimary,
+                WeaponAllocationType.Preferred => CT_Preferred,
+                _ => null
+            },
+            _ => null
+        };
     }
 }
 
-public class CsItemConverter : ValueConverter<CsItem?, string>
+public class CsItemConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<CsItem?, int?>
 {
     public CsItemConverter() : base(
-        v => CsItemSerializer(v),
-        s => CsItemDeserializer(s)
-    )
-    {
-    }
-
-    public static string CsItemSerializer(CsItem? item)
-    {
-        return JsonSerializer.Serialize(item);
-    }
-
-    public static CsItem? CsItemDeserializer(string? str)
-    {
-        if (str is null)
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<CsItem>(str);
-    }
-}
-
-public class WeaponPreferencesConverter : ValueConverter<WeaponPreferencesType, string>
-{
-    public WeaponPreferencesConverter() : base(
-        v => WeaponPreferenceSerialize(v),
-        s => WeaponPreferenceDeserialize(s)
-    )
-    {
-    }
-
-    public static string WeaponPreferenceSerialize(WeaponPreferencesType? value)
-    {
-        if (value is null)
-        {
-            return "";
-        }
-
-        return JsonSerializer.Serialize(value);
-    }
-
-    public static WeaponPreferencesType WeaponPreferenceDeserialize(string value)
-    {
-        WeaponPreferencesType? parseResult = null;
-        try { 
-            parseResult = JsonSerializer.Deserialize<WeaponPreferencesType>(value);
-        } catch (Exception e)
-        {
-            Log.Error($"Failed to deserialize weapon preferences: {e.Message}");
-        }
-        
-        return parseResult ?? new WeaponPreferencesType();
-    }
-}
-
-public class WeaponPreferencesComparer : ValueComparer<WeaponPreferencesType>
-{
-    public WeaponPreferencesComparer() : base(
-        (a, b) =>
-            WeaponPreferencesConverter.WeaponPreferenceSerialize(a).Equals(
-                WeaponPreferencesConverter.WeaponPreferenceSerialize(b)
-            ),
-        (v) => WeaponPreferencesConverter.WeaponPreferenceSerialize(v).GetHashCode()
+        v => v.HasValue ? (int?)v.Value : null,
+        v => v.HasValue ? (CsItem?)v.Value : null
     )
     {
     }

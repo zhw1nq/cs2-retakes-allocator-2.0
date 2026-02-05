@@ -17,7 +17,6 @@ using RetakesAllocator.Menus;
 using RetakesAllocatorCore;
 using RetakesAllocatorCore.Config;
 using RetakesAllocatorCore.Db;
-using SQLitePCL;
 using RetakesAllocator.AdvancedMenus;
 using static RetakesAllocatorCore.PluginInfo;
 using RetakesPluginShared;
@@ -37,6 +36,8 @@ public class RetakesAllocator : BasePlugin
     private readonly AllocatorMenuManager _allocatorMenuManager = new();
     private readonly AdvancedGunMenu _advancedGunMenu = new();
     private readonly Dictionary<CCSPlayerController, Dictionary<ItemSlotType, CsItem>> _allocatedPlayerItems = new();
+    private readonly Dictionary<ulong, DateTime> _gunCommandCooldowns = new();
+    private const double GunCommandCooldownSeconds = 5.0;
     private IRetakesPluginEventSender? RetakesPluginEventSender { get; set; }
 
     private CustomGameData? CustomFunctions { get; set; }
@@ -59,7 +60,6 @@ public class RetakesAllocator : BasePlugin
 
         Log.Debug($"Loaded. Hot reload: {hotReload}");
         ResetState();
-        Batteries.Init();
         KitsuneMenu.KitsuneMenu.Init();
 
         RegisterListener<Listeners.OnMapStart>(mapName =>
@@ -270,6 +270,18 @@ public class RetakesAllocator : BasePlugin
         var playerId = Helpers.GetSteamId(player);
         var currentTeam = player!.Team;
 
+        // Check cooldown for weapon swap (not for preference save)
+        if (player.PawnIsAlive && _gunCommandCooldowns.TryGetValue(playerId, out var lastUsed))
+        {
+            var elapsed = (DateTime.UtcNow - lastUsed).TotalSeconds;
+            if (elapsed < GunCommandCooldownSeconds)
+            {
+                var remaining = Math.Ceiling(GunCommandCooldownSeconds - elapsed);
+                commandInfo.ReplyToCommand($"{PluginInfo.MessagePrefix}Please wait {remaining}s before changing weapon again.");
+                return;
+            }
+        }
+
         var result = OnWeaponCommandHelper.HandleFromCache(
             Helpers.CommandInfoToArgList(commandInfo),
             playerId,
@@ -280,7 +292,32 @@ public class RetakesAllocator : BasePlugin
         );
         Helpers.WriteNewlineDelimited(result, commandInfo.ReplyToCommand);
 
-        // Preferences now only affect the next allocation; no weapon swap during the current round
+        // Immediately swap weapon if valid for current round and player is alive
+        if (selectedWeapon.HasValue && player.PawnIsAlive)
+        {
+            var selectedWeaponAllocationType =
+                WeaponHelpers.GetWeaponAllocationTypeForWeaponAndRound(RoundTypeManager.Instance.GetCurrentRoundType(),
+                    currentTeam,
+                    selectedWeapon.Value);
+            if (selectedWeaponAllocationType is not null)
+            {
+                // Update cooldown
+                _gunCommandCooldowns[playerId] = DateTime.UtcNow;
+
+                // Remove weapon in same slot BEFORE allocating new one (like original source)
+                Helpers.RemoveWeapons(
+                    player,
+                    item =>
+                        WeaponHelpers.GetWeaponAllocationTypeForWeaponAndRound(
+                            RoundTypeManager.Instance.GetCurrentRoundType(), currentTeam, item) ==
+                        selectedWeaponAllocationType
+                );
+
+                var slotType = WeaponHelpers.GetSlotTypeForItem(selectedWeapon.Value);
+                var slotName = WeaponHelpers.GetSlotNameForSlotType(slotType);
+                AllocateItemsForPlayer(player, new List<CsItem> { selectedWeapon.Value }, slotName);
+            }
+        }
     }
 
     [ConsoleCommand("css_awp", "Join or leave the AWP queue.")]
@@ -685,14 +722,8 @@ public class RetakesAllocator : BasePlugin
         )
         {
             // Update cache first for immediate consistency
+            // DB persistence handled by periodic cache flush (every 120s)
             PlayerSettingsCache.SetWeaponPreference(playerId, team, purchasedAllocationType.Value, item);
-            // Then persist to database async
-            Queries.SetWeaponPreferenceForUser(
-                playerId,
-                team,
-                purchasedAllocationType.Value,
-                item
-            );
             var slotType = WeaponHelpers.GetSlotTypeForItem(item);
             if (slotType is not null)
             {
@@ -1074,6 +1105,17 @@ public class RetakesAllocator : BasePlugin
         if (!string.IsNullOrEmpty(Configs.GetConfigData().InGameGunMenuCenterCommands))
         {
             _advancedGunMenu.OnEventPlayerDisconnect(@event, info);
+        }
+
+        // Flush player settings to database on disconnect
+        var player = @event.Userid;
+        if (player != null && player.IsValid)
+        {
+            var steamId = Helpers.GetSteamId(player);
+            if (steamId != 0)
+            {
+                _ = Task.Run(() => PlayerSettingsCache.FlushPlayerAsync(steamId));
+            }
         }
 
         return HookResult.Continue;
