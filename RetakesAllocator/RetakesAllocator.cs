@@ -108,8 +108,8 @@ public class RetakesAllocator : BasePlugin
 
         AddTimer(0.1f, () => { GetRetakesPluginEventSender().RetakesPluginEventHandlers += RetakesEventHandler; });
 
-        // Periodic cache flush (every 120 seconds)
-        AddTimer(120.0f, () => _ = PlayerSettingsCache.FlushDirtyPlayersAsync(), TimerFlags.REPEAT);
+        // Periodic cache flush (every 120 seconds) - run on background thread to avoid SlowServerFrame
+        AddTimer(120.0f, () => Task.Run(async () => await PlayerSettingsCache.FlushDirtyPlayersAsync()), TimerFlags.REPEAT);
 
         if (Configs.GetConfigData().MigrateOnStartup)
         {
@@ -634,18 +634,10 @@ public class RetakesAllocator : BasePlugin
                 return RetStop();
             }
 
-            // Check cache first (contains latest settings), fallback to database
+            // Check cache only - no blocking DB calls (cache is pre-loaded on player connect)
             var cachedSetting = PlayerSettingsCache.GetSettings(steamId);
-            if (cachedSetting != null)
-            {
-                return cachedSetting.ZeusEnabled == true ? HookResult.Continue : RetStop();
-            }
-
-            // Fallback to database if not in cache
-            var userSettings = Queries.GetUsersSettings(new[] { steamId });
-            userSettings.TryGetValue(steamId, out var userSetting);
-
-            return userSetting?.ZeusEnabled == true ? HookResult.Continue : RetStop();
+            // If not in cache, default to disabled (safe fallback, avoids blocking main thread)
+            return cachedSetting?.ZeusEnabled == true ? HookResult.Continue : RetStop();
         }
         if (!WeaponHelpers.IsUsableWeapon(item))
         {

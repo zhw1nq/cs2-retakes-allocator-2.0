@@ -49,21 +49,9 @@ public class OnRoundPostStartHelper
         Log.Debug($"#T Players: {string.Join(",", tPlayers.Select(getSteamId))}");
         Log.Debug($"#CT Players: {string.Join(",", ctPlayers.Select(getSteamId))}");
 
-        // Priority: Read from cache first (contains latest !gun changes), fallback to database
-        var cachedSettings = PlayerSettingsCache.GetCachedSettings(playerIds);
-        var uncachedPlayerIds = playerIds.Where(id => !cachedSettings.ContainsKey(id)).ToList();
-
-        // Only query database for players not in cache
-        var dbSettings = uncachedPlayerIds.Count > 0
-            ? Queries.GetUsersSettings(uncachedPlayerIds)
-            : new Dictionary<ulong, UserSetting>();
-
-        // Merge: cache takes priority over database
-        var userSettingsByPlayerId = new Dictionary<ulong, UserSetting>(dbSettings);
-        foreach (var kvp in cachedSettings)
-        {
-            userSettingsByPlayerId[kvp.Key] = kvp.Value;
-        }
+        // Use cache only - players are pre-loaded when they connect
+        // Avoid sync DB calls to prevent blocking main thread (SlowServerFrame)
+        var userSettingsByPlayerId = PlayerSettingsCache.GetCachedSettings(playerIds);
 
         var defusingPlayer = Utils.Choice(ctPlayers);
 
@@ -158,7 +146,11 @@ public class OnRoundPostStartHelper
                     () => CsItem.AWP
                 );
             }
+        }
 
+        // SSG-08 (Scout) available on both Half Buy and Full Buy rounds
+        if (roundType == RoundType.HalfBuy || roundType == RoundType.FullBuy)
+        {
             if (random.NextDouble() * 100 <= config.ChanceForSsgWeapon)
             {
                 var tSsgEligible = FilterPreferredPlayers(tPlayers, WeaponHelpers.IsSsgPreference)
