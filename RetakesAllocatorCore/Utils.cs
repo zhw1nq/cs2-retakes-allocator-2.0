@@ -6,6 +6,9 @@ namespace RetakesAllocatorCore;
 
 public static class Utils
 {
+    // Cache ServerVersion to avoid expensive AutoDetect() on every DbContext creation
+    private static ServerVersion? _cachedServerVersion;
+    private static readonly object _versionLock = new();
     /**
      * Randomly get an item from the collection
      */
@@ -88,7 +91,15 @@ public static class Utils
 
     public static void SetupMySql(string connectionString, DbContextOptionsBuilder optionsBuilder)
     {
-        var version = ServerVersion.AutoDetect(connectionString);
-        optionsBuilder.UseMySql(connectionString, version);
+        // Cache ServerVersion to avoid expensive AutoDetect() on every DbContext creation
+        // AutoDetect() opens a connection to detect MySQL/MariaDB version - causes ~500-1000ms lag
+        if (_cachedServerVersion == null)
+        {
+            lock (_versionLock)
+            {
+                _cachedServerVersion ??= ServerVersion.AutoDetect(connectionString);
+            }
+        }
+        optionsBuilder.UseMySql(connectionString, _cachedServerVersion);
     }
 }
